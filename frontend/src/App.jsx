@@ -22,6 +22,9 @@ import {
   Layers,
   ArrowRight,
   Filter,
+  Plus,
+  X,
+  UploadCloud,
 } from 'lucide-react';
 
 export default function App() {
@@ -29,6 +32,18 @@ export default function App() {
   const [availableDocs, setAvailableDocs] = useState([]);
   // Selected document filenames (empty array = all documents)
   const [selectedDocs, setSelectedDocs] = useState([]);
+
+  // File upload state & notifications
+  const [uploading, setUploading] = useState(false);
+  const [notification, setNotification] = useState(null); // { type: 'success' | 'error', message: string }
+  const fileInputRef = useRef(null);
+
+  const showToast = (message, type = 'success') => {
+    setNotification({ message, type });
+    setTimeout(() => {
+      setNotification((curr) => (curr?.message === message ? null : curr));
+    }, 4500);
+  };
 
   // Chat message state: [{ id, role: 'user' | 'assistant', content, sources, steps, confidence, web_search_used, latency_ms }]
   const [messages, setMessages] = useState([
@@ -107,6 +122,101 @@ export default function App() {
 
   const handleSelectAllDocs = () => {
     setSelectedDocs([]);
+  };
+
+  // Upload and dynamically index document
+  const handleFileUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Reset input so user can re-upload if needed
+    e.target.value = '';
+
+    const validExtensions = ['.pdf', '.md', '.markdown', '.txt'];
+    const ext = '.' + file.name.split('.').pop().toLowerCase();
+    if (!validExtensions.includes(ext)) {
+      showToast(`Unsupported format "${ext}". Please upload PDF, Markdown, or TXT.`, 'error');
+      return;
+    }
+
+    if (file.size > 50 * 1024 * 1024) {
+      showToast('File size exceeds 50MB limit.', 'error');
+      return;
+    }
+
+    setUploading(true);
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const res = await fetch('/api/documents/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.detail || `Upload failed with HTTP ${res.status}`);
+      }
+
+      const data = await res.json();
+      showToast(`Indexed "${data.name}" (${data.chunks} chunks)!`, 'success');
+
+      // Refresh available documents and health
+      await fetchDocsAndHealth();
+
+      // Automatically select the new document so the user can immediately query it
+      setSelectedDocs((prev) => {
+        if (!prev.includes(data.name)) {
+          return [...prev, data.name];
+        }
+        return prev;
+      });
+
+      // Insert confirmation in chat
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `upload-${Date.now()}`,
+          role: 'assistant',
+          content: `Added and indexed **${data.name}** into ChromaDB (${data.chunks} chunks${
+            data.pages ? `, ${data.pages} pages` : ''
+          }). It is now active and selected for queries.`,
+          sources: [],
+          steps: [],
+          confidence: 1.0,
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        },
+      ]);
+    } catch (err) {
+      console.error('File upload error:', err);
+      showToast(err.message, 'error');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  // Delete document from vector store and disk
+  const handleDeleteDoc = async (docName, e) => {
+    e.stopPropagation();
+    if (!window.confirm(`Delete "${docName}" and remove all its chunks from the vector store?`)) {
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/documents/${encodeURIComponent(docName)}`, {
+        method: 'DELETE',
+      });
+      if (!res.ok) {
+        throw new Error(`Failed to delete (HTTP ${res.status})`);
+      }
+      showToast(`Removed "${docName}" from index.`, 'success');
+      setSelectedDocs((prev) => prev.filter((d) => d !== docName));
+      await fetchDocsAndHealth();
+    } catch (err) {
+      console.error('Delete doc error:', err);
+      showToast(err.message, 'error');
+    }
   };
 
   // Submit chat message
@@ -269,6 +379,33 @@ export default function App() {
       {/* Document Selector Header Bar */}
       <section className="border-b border-zinc-800/80 bg-[#0e1322]/80 backdrop-blur px-4 py-3">
         <div className="max-w-6xl mx-auto space-y-2">
+          {/* Notification Banner */}
+          {notification && (
+            <div
+              className={`p-2.5 rounded-lg text-xs flex items-center justify-between transition-all ${
+                notification.type === 'error'
+                  ? 'bg-rose-500/10 border border-rose-500/30 text-rose-300'
+                  : 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-300'
+              }`}
+            >
+              <div className="flex items-center space-x-2">
+                {notification.type === 'error' ? (
+                  <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
+                ) : (
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                )}
+                <span>{notification.message}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setNotification(null)}
+                className="hover:opacity-75 p-0.5"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
+
           <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
             <div className="flex items-center space-x-2 text-zinc-300 font-medium">
               <Filter className="w-3.5 h-3.5 text-indigo-400" />
@@ -278,16 +415,49 @@ export default function App() {
               </span>
             </div>
 
-            <button
-              onClick={handleSelectAllDocs}
-              className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-all ${
-                selectedDocs.length === 0
-                  ? 'bg-indigo-600 text-white shadow-sm'
-                  : 'bg-zinc-800 text-zinc-400 hover:text-zinc-200 border border-zinc-700'
-              }`}
-            >
-              Select All Documents
-            </button>
+            <div className="flex items-center space-x-2">
+              {/* Hidden file input */}
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileUpload}
+                accept=".pdf,.md,.markdown,.txt"
+                className="hidden"
+              />
+
+              {/* Add / Upload Document Button */}
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+                className="px-2.5 py-1 rounded-md text-[11px] font-medium bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white shadow-sm flex items-center space-x-1.5 transition-all disabled:opacity-50"
+                title="Upload a PDF, Markdown, or TXT document"
+              >
+                {uploading ? (
+                  <>
+                    <RefreshCw className="w-3 h-3 animate-spin" />
+                    <span>Indexing File...</span>
+                  </>
+                ) : (
+                  <>
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Add Document</span>
+                  </>
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={handleSelectAllDocs}
+                className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-all ${
+                  selectedDocs.length === 0
+                    ? 'bg-zinc-700 text-white shadow-sm'
+                    : 'bg-zinc-800 text-zinc-400 hover:text-zinc-200 border border-zinc-700'
+                }`}
+              >
+                Select All
+              </button>
+            </div>
           </div>
 
           {/* Document Selection Pills */}
@@ -298,10 +468,10 @@ export default function App() {
               const active = isAll || isSelected;
 
               return (
-                <button
+                <div
                   key={idx}
                   onClick={() => handleToggleDoc(doc.name)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium border flex items-center space-x-2 transition-all ${
+                  className={`group cursor-pointer px-3 py-1.5 rounded-lg text-xs font-medium border flex items-center space-x-2 transition-all ${
                     active
                       ? isSelected
                         ? 'bg-indigo-600/20 border-indigo-500 text-indigo-200'
@@ -316,20 +486,30 @@ export default function App() {
                     className="w-3 h-3 rounded bg-zinc-900 border-zinc-700 text-indigo-600 pointer-events-none"
                   />
                   {doc.type === 'pdf' ? (
-                    <BookOpen className="w-3.5 h-3.5 text-rose-400" />
+                    <BookOpen className="w-3.5 h-3.5 text-rose-400 shrink-0" />
                   ) : (
-                    <FileText className="w-3.5 h-3.5 text-sky-400" />
+                    <FileText className="w-3.5 h-3.5 text-sky-400 shrink-0" />
                   )}
-                  <span className="truncate max-w-[220px]">{doc.name}</span>
+                  <span className="truncate max-w-[200px]" title={doc.name}>{doc.name}</span>
                   {doc.pages && (
-                    <span className="text-[10px] text-zinc-400 font-mono">
+                    <span className="text-[10px] text-zinc-400 font-mono shrink-0">
                       p.{doc.pages}
                     </span>
                   )}
-                  <span className="text-[10px] px-1.5 py-0.2 rounded bg-zinc-800/80 text-zinc-400 font-mono">
+                  <span className="text-[10px] px-1.5 py-0.2 rounded bg-zinc-800/80 text-zinc-400 font-mono shrink-0">
                     {doc.chunks} ch
                   </span>
-                </button>
+
+                  {/* Remove / Delete icon */}
+                  <button
+                    type="button"
+                    onClick={(e) => handleDeleteDoc(doc.name, e)}
+                    className="opacity-0 group-hover:opacity-100 p-0.5 text-zinc-500 hover:text-rose-400 transition-opacity ml-0.5"
+                    title={`Delete ${doc.name} from index`}
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </button>
+                </div>
               );
             })}
           </div>

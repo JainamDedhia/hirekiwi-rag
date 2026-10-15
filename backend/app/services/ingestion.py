@@ -375,7 +375,7 @@ class IngestionService:
             size_kb = round(f.stat().st_size / 1024, 1)
 
             # Assign topic / chapter category
-            category = "Technical Policy"
+            category = "User Document"
             if "linear_equation" in f.name.lower():
                 category = "Mathematics (Std 10, Ch 1)"
             elif "field_visit" in f.name.lower():

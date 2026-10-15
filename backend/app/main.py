@@ -6,7 +6,8 @@ import time
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
-from fastapi import FastAPI, HTTPException, Request, status
+from pathlib import Path
+from fastapi import FastAPI, File, HTTPException, Request, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
 
@@ -231,6 +232,82 @@ async def list_documents():
         total_chunks=stats["total_chunks"],
         documents=doc_details,
     )
+
+
+@app.post("/api/documents/upload")
+async def upload_document(file: UploadFile = File(...)):
+    """Uploads a PDF, Markdown, or TXT file, chunks it, and indexes it into ChromaDB."""
+    filename = Path(file.filename).name
+    allowed_extensions = {".pdf", ".md", ".markdown", ".txt"}
+    suffix = Path(filename).suffix.lower()
+
+    if suffix not in allowed_extensions:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Unsupported file format '{suffix}'. Allowed formats: .pdf, .md, .txt",
+        )
+
+    destination = Path(settings.DATA_DIR) / filename
+    try:
+        content = await file.read()
+        with open(destination, "wb") as f:
+            f.write(content)
+
+        # Ingest into vector store
+        chunks = ingestion_service.ingest_file(destination)
+
+        # Get page count if PDF
+        pages = None
+        if suffix == ".pdf":
+            try:
+                import pymupdf
+                doc = pymupdf.open(str(destination))
+                pages = len(doc)
+                doc.close()
+            except Exception:
+                pass
+
+        file_size_kb = round(len(content) / 1024, 1)
+        logger.info("Uploaded and indexed '%s' (%d chunks, %s KB)", filename, len(chunks), file_size_kb)
+
+        return {
+            "status": "success",
+            "message": f"Successfully uploaded and indexed '{filename}'",
+            "name": filename,
+            "type": "pdf" if suffix == ".pdf" else "markdown",
+            "chunks": len(chunks),
+            "pages": pages,
+            "size_kb": file_size_kb,
+        }
+    except Exception as e:
+        logger.error("Failed to upload/ingest document %s: %s", filename, e, exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Document upload and indexing failed: {str(e)}",
+        )
+
+
+@app.delete("/api/documents/{document_name}")
+async def delete_document(document_name: str):
+    """Deletes a document from the vector store and disk."""
+    try:
+        deleted_count = vector_store_service.delete_by_source(document_name)
+
+        # Remove from data directory if exists
+        file_path = Path(settings.DATA_DIR) / document_name
+        if file_path.exists() and file_path.is_file():
+            file_path.unlink()
+
+        return {
+            "status": "success",
+            "message": f"Removed document '{document_name}' and {deleted_count} indexed chunks.",
+        }
+    except Exception as e:
+        logger.error("Error deleting document %s: %s", document_name, e)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to delete document: {str(e)}",
+        )
 
 
 @app.delete("/api/documents")

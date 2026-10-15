@@ -233,6 +233,21 @@ class VectorStoreService:
             logger.error("Failed to query document chunk counts: %s", e)
             return {}
 
+    def delete_by_source(self, source_name: str) -> int:
+        """Deletes all chunks belonging to a specific source document."""
+        try:
+            # Check how many chunks match
+            existing = self.collection.get(where={"source": source_name})
+            ids = existing.get("ids", [])
+            if ids:
+                self.collection.delete(ids=ids)
+                logger.info("Deleted %d chunks for source '%s' from ChromaDB", len(ids), source_name)
+                return len(ids)
+            return 0
+        except Exception as e:
+            logger.error("Error deleting chunks for '%s': %s", source_name, e)
+            return 0
+
     def clear_collection(self):
         """Clears all records in the collection."""
         try:
