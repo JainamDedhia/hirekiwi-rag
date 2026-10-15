@@ -34,19 +34,26 @@ logger = logging.getLogger("hirekiwi-rag")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Application lifespan: seeds vector database if empty on startup."""
+    """Application lifespan: binds port immediately, syncs vector DB in background."""
     logger.info("Initializing %s (Env: %s)...", settings.APP_NAME, settings.APP_ENV)
-    try:
-        ingest_result = ingestion_service.ingest_sample_documents(force_reload=False)
-        stats = vector_store_service.get_collection_stats()
-        logger.info(
-            "Vector DB ready: %d total chunks across %d indexed documents (Startup status: %s).",
-            stats["total_chunks"],
-            len(stats["indexed_documents"]),
-            ingest_result.status,
-        )
-    except Exception as e:
-        logger.error("Error during startup vector DB initialization: %s", e)
+
+    async def _init_vector_db():
+        import asyncio
+        loop = asyncio.get_event_loop()
+        try:
+            logger.info("Starting background vector DB synchronization...")
+            await loop.run_in_executor(None, ingestion_service.ingest_sample_documents, False)
+            stats = vector_store_service.get_collection_stats()
+            logger.info(
+                "Background vector DB sync complete: %d chunks across %d documents.",
+                stats["total_chunks"],
+                len(stats["indexed_documents"]),
+            )
+        except Exception as e:
+            logger.error("Error during background vector DB initialization: %s", e)
+
+    import asyncio
+    asyncio.create_task(_init_vector_db())
     yield
     logger.info("Shutting down %s...", settings.APP_NAME)
 
