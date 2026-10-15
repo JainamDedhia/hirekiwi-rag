@@ -52,6 +52,12 @@ class QueryRequest(BaseModel):
     similarity_threshold: Optional[float] = Field(
         default=None, description="Minimum similarity score filter"
     )
+    selected_documents: Optional[List[str]] = Field(
+        default=None, description="Optional list of specific document source names to filter retrieval"
+    )
+    chat_history: Optional[List[Dict[str, str]]] = Field(
+        default=None, description="Optional conversational history turns [{'role': 'user'|'assistant', 'content': '...'}]"
+    )
 
 
 class QueryResponse(BaseModel):

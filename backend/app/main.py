@@ -121,6 +121,8 @@ async def execute_crag_query(request: QueryRequest):
             top_k=request.top_k or settings.RETRIEVAL_TOP_K,
             enable_web_search=request.enable_web_search if request.enable_web_search is not None else True,
             similarity_threshold=request.similarity_threshold or settings.SIMILARITY_THRESHOLD,
+            selected_documents=request.selected_documents,
+            chat_history=request.chat_history,
         )
         return response
     except Exception as e:
@@ -145,6 +147,8 @@ async def stream_crag_query(request: QueryRequest):
             top_k=request.top_k or settings.RETRIEVAL_TOP_K,
             enable_web_search=request.enable_web_search if request.enable_web_search is not None else True,
             similarity_threshold=request.similarity_threshold or settings.SIMILARITY_THRESHOLD,
+            selected_documents=request.selected_documents,
+            chat_history=request.chat_history,
         )
 
         for step in response.execution_steps:

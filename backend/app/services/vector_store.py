@@ -128,20 +128,38 @@ class VectorStoreService:
         return len(chunks)
 
     def similarity_search_with_score(
-        self, query: str, top_k: int = 4, score_threshold: Optional[float] = None
+        self,
+        query: str,
+        top_k: int = 4,
+        score_threshold: Optional[float] = None,
+        doc_sources: Optional[List[str]] = None,
     ) -> List[Tuple[DocumentChunk, float]]:
-        """Retrieves top_k chunks matching the query with cosine similarity scores."""
+        """Retrieves top_k chunks matching the query with cosine similarity scores, optionally filtered by source documents."""
         total_items = self.collection.count()
         if total_items == 0:
             logger.warning("Vector store is empty! No documents to retrieve.")
             return []
 
         actual_k = min(top_k, total_items)
-        results = self.collection.query(
-            query_texts=[query],
-            n_results=actual_k,
-            include=["documents", "metadatas", "distances"],
-        )
+        query_kwargs: Dict[str, Any] = {
+            "query_texts": [query],
+            "n_results": actual_k,
+            "include": ["documents", "metadatas", "distances"],
+        }
+
+        # Apply document filter if requested
+        if doc_sources and len(doc_sources) > 0:
+            if len(doc_sources) == 1:
+                query_kwargs["where"] = {"source": doc_sources[0]}
+            else:
+                query_kwargs["where"] = {"source": {"$in": doc_sources}}
+
+        try:
+            results = self.collection.query(**query_kwargs)
+        except Exception as e:
+            logger.warning("Filtered query error (%s). Retrying without where filter.", e)
+            query_kwargs.pop("where", None)
+            results = self.collection.query(**query_kwargs)
 
         matched_chunks: List[Tuple[DocumentChunk, float]] = []
 
@@ -168,9 +186,11 @@ class VectorStoreService:
 
         return matched_chunks
 
-    def similarity_search(self, query: str, top_k: int = 4) -> List[DocumentChunk]:
-        """Returns top_k matching DocumentChunks."""
-        scored = self.similarity_search_with_score(query, top_k=top_k)
+    def similarity_search(
+        self, query: str, top_k: int = 4, doc_sources: Optional[List[str]] = None
+    ) -> List[DocumentChunk]:
+        """Returns top_k matching DocumentChunks, optionally filtered by source documents."""
+        scored = self.similarity_search_with_score(query, top_k=top_k, doc_sources=doc_sources)
         return [chunk for chunk, _ in scored]
 
     def get_collection_stats(self) -> Dict[str, Any]:

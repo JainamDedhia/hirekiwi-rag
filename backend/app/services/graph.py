@@ -35,6 +35,8 @@ class GraphState(TypedDict):
     enable_web_search: bool
     top_k: int
     similarity_threshold: Optional[float]
+    selected_documents: Optional[List[str]]
+    chat_history: Optional[List[Dict[str, str]]]
 
 
 # ---------------------------------------------------------------------------
@@ -48,11 +50,15 @@ def retrieve(state: GraphState) -> Dict[str, Any]:
     question = state["question"]
     top_k = state.get("top_k", settings.RETRIEVAL_TOP_K)
     threshold = state.get("similarity_threshold", settings.SIMILARITY_THRESHOLD)
+    selected_docs = state.get("selected_documents")
 
-    # Retrieve candidate pool for reranker
+    # Retrieve candidate pool for reranker, optionally filtered by selected documents
     candidate_k = max(top_k * 2, settings.INITIAL_RETRIEVAL_K)
     scored_results = vector_store_service.similarity_search_with_score(
-        query=question, top_k=candidate_k, score_threshold=threshold
+        query=question,
+        top_k=candidate_k,
+        score_threshold=threshold,
+        doc_sources=selected_docs,
     )
     documents = [chunk for chunk, _ in scored_results]
 
@@ -64,6 +70,7 @@ def retrieve(state: GraphState) -> Dict[str, Any]:
             "candidates_retrieved": len(documents),
             "candidate_k": candidate_k,
             "threshold": threshold,
+            "selected_filter": selected_docs,
             "doc_sources": list(set(d.source for d in documents)),
         },
         duration_ms=round(duration_ms, 2),
@@ -290,11 +297,13 @@ def generate(state: GraphState) -> Dict[str, Any]:
     question = state["question"]
     filtered_docs = state.get("filtered_documents", [])
     web_results = state.get("web_results", [])
+    chat_history = state.get("chat_history")
 
     answer, confidence = llm_gateway.generate_rag_answer(
         query=question,
         documents=filtered_docs,
         web_results=web_results,
+        chat_history=chat_history,
     )
 
     duration_ms = (time.time() - start_time) * 1000.0
@@ -390,6 +399,8 @@ def run_crag_pipeline(
     top_k: int = 4,
     enable_web_search: bool = True,
     similarity_threshold: Optional[float] = None,
+    selected_documents: Optional[List[str]] = None,
+    chat_history: Optional[List[Dict[str, str]]] = None,
 ) -> QueryResponse:
     """Executes the complete CRAG pipeline and returns a structured response."""
     start_total = time.time()
@@ -407,6 +418,8 @@ def run_crag_pipeline(
         "enable_web_search": enable_web_search,
         "top_k": top_k,
         "similarity_threshold": similarity_threshold,
+        "selected_documents": selected_documents,
+        "chat_history": chat_history,
     }
 
     try:

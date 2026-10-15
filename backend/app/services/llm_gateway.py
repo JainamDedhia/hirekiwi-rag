@@ -241,8 +241,9 @@ class LLMGateway:
         query: str,
         documents: List[DocumentChunk],
         web_results: List[WebSearchResult],
+        chat_history: Optional[List[Dict[str, str]]] = None,
     ) -> Tuple[str, float]:
-        """Synthesizes the final grounded answer and confidence score."""
+        """Synthesizes the final grounded answer and confidence score, with conversational memory."""
         if self._llm:
             try:
                 from langchain_core.messages import HumanMessage, SystemMessage
@@ -261,9 +262,17 @@ class LLMGateway:
                     )
                 web_text = "\n\n".join(web_contexts)
 
+                history_context = ""
+                if chat_history and len(chat_history) > 0:
+                    turns = []
+                    for turn in chat_history[-6:]:
+                        role = "User" if turn.get("role") == "user" else "Assistant"
+                        turns.append(f"{role}: {turn.get('content', '')}")
+                    history_context = "--- CONVERSATION CONTEXT ---\n" + "\n".join(turns) + "\n\n"
+
                 system_prompt = (
-                    "You are a strict, production-grade AI Knowledge Assistant. "
-                    "Your primary goal is to provide accurate answers grounded entirely in the provided internal documents and web search results.\n\n"
+                    "You are a strict, production-grade AI Knowledge Assistant pair-programming with the user. "
+                    "Your primary goal is to answer the user's questions clearly, conversationally, and accurately, grounded entirely in the provided internal documents and web search results.\n\n"
                     "CRITICAL GROUNDING AND CITATION RULES:\n"
                     "1. Grounding: Answer strictly using facts stated in the provided context. Do NOT invent, assume, or extrapolate facts.\n"
                     "2. Evidence: You MUST cite the source document name and page or section in square brackets for every statement (e.g. [chapter_01_Linear_Equations_in_Two_Variables.pdf | Page 12] or [engineering_handbook.md > On-Call Operations]).\n"
@@ -274,7 +283,8 @@ class LLMGateway:
                 )
 
                 user_prompt = (
-                    f"User Question: {query}\n\n"
+                    f"{history_context}"
+                    f"Current User Question: {query}\n\n"
                     f"--- RETRIEVED INTERNAL DOCUMENTS ---\n{docs_text or 'None'}\n\n"
                     f"--- EXTERNAL SEARCH RESULTS ---\n{web_text or 'None'}\n\n"
                     "Provide your grounded, cited answer (or indicate unavailability):"
