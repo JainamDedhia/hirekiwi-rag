@@ -23,47 +23,58 @@ The HireKiwi CRAG system implements a cyclic LangGraph state machine with **Hybr
                                        |
                                        v
                            +-----------------------+
-                           |    [retrieve] Node    |  <-- ChromaDB Persistent Store
-                           |   (Candidate Pool)    |      (101 Chunks Ingested)
-                           +-----------+-----------+
-                                       |
-                                       v
-                           +-----------------------+
-                           |     [rerank] Node     |  <-- Hybrid BM25 + Dense RRF (k=60)
-                           |   (Reciprocal Rank)   |
-                           +-----------+-----------+
-                                       |
-                                       v
-                           +-----------------------+
-                           | [grade_documents] Node|  <-- LLM / Grader Evaluator
+                           | [understand_query]    |  <-- LLM Intent Reasoning & Search Planner
                            +-----------+-----------+
                                        |
                    +-------------------+-------------------+
                    |                                       |
-         (No / Low Relevance)                     (Relevant Docs Present)
+      (Conversational / Greeting)             (Document Search Request)
                    |                                       |
-                   v                                       |
-       +-----------------------+                           |
-       | [transform_query] Node|                           |
-       +-----------+-----------+                           |
+                   v                                       v
+       +-----------------------+               +-----------------------+
+       | [conversational_reply]|               |    [retrieve] Node    |  <-- ChromaDB Persistent Store
+       | (Direct Response)     |               | (Dynamic Multi-filter)|      (101 Chunks Ingested)
+       +-----------+-----------+               +-----------+-----------+
                    |                                       |
-                   v                                       |
-       +-----------------------+                           |
-       |   [web_search] Node   |                           |
-       | (DuckDuckGo / Tavily) |                           |
-       +-----------+-----------+                           |
+                   |                                       v
+                   |                           +-----------------------+
+                   |                           |     [rerank] Node     |  <-- Hybrid BM25 + Dense RRF (k=60)
+                   |                           |   (Reciprocal Rank)   |
+                   |                           +-----------+-----------+
+                   |                                       |
+                   |                                       v
+                   |                           +-----------------------+
+                   |                           | [grade_documents] Node|  <-- Relevance Evaluation
+                   |                           +-----------+-----------+
+                   |                                       |
+                   |                   +-------------------+-------------------+
+                   |                   |                                       |
+                   |         (No / Low Relevance)                     (Relevant Docs Present)
+                   |                   |                                       |
+                   |                   v                                       |
+                   |       +-----------------------+                           |
+                   |       | [transform_query] Node|                           |
+                   |       +-----------+-----------+                           |
+                   |                   |                                       |
+                   |                   v                                       |
+                   |       +-----------------------+                           |
+                   |       |   [web_search] Node   |                           |
+                   |       | (DuckDuckGo / Tavily) |                           |
+                   |       +-----------+-----------+                           |
+                   |                   |                                       |
+                   |                   +-------------------+-------------------+
+                   |                                       |
+                   |                                       v
+                   |                           +-----------------------+
+                   |                           |    [generate] Node    |  <-- Grounded Citations / Refusal
+                   |                           +-----------+-----------+
                    |                                       |
                    +-------------------+-------------------+
                                        |
                                        v
                            +-----------------------+
-                           |    [generate] Node    |  <-- Strict Grounding & Citations
-                           +-----------+-----------+
-                                       |
-                                       v
+                           |     Final Answer      |
                            +-----------------------+
-                           |     Final Answer      |  <-- (Answer + Citations OR
-                           +-----------------------+       "Information Unavailable")
 ```
 
 ### Key Technical Decisions
