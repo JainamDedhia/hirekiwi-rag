@@ -1,0 +1,116 @@
+{
+  "timestamp": 1792052459.2304888,
+  "total_cases": 12,
+  "passed_cases": 12,
+  "pass_rate_pct": 100.0,
+  "results": [
+    {
+      "id": "TC-01",
+      "category": "Math - Linear Equations",
+      "type": "answerable",
+      "query": "How do you solve simultaneous linear equations using Cramer's Rule, and what are D, Dx, and Dy?",
+      "confidence": 0.95,
+      "latency_ms": 7944.78,
+      "passed": true
+    },
+    {
+      "id": "TC-02",
+      "category": "Math - Graphical Method",
+      "type": "answerable",
+      "query": "What is the graphical method for solving simultaneous linear equations and how many points are needed to represent a line?",
+      "confidence": 0.95,
+      "latency_ms": 14560.83,
+      "passed": true
+    },
+    {
+      "id": "TC-03",
+      "category": "Geography - Field Study",
+      "type": "answerable",
+      "query": "What essential skills are needed for studying geography according to the textbook preface?",
+      "confidence": 0.95,
+      "latency_ms": 20475.22,
+      "passed": true
+    },
+    {
+      "id": "TC-04",
+      "category": "Geography - Comparison",
+      "type": "answerable",
+      "query": "Which two countries have their characteristics compared in the Standard 10 Geography textbook?",
+      "confidence": 0.95,
+      "latency_ms": 22197.01,
+      "passed": true
+    },
+    {
+      "id": "TC-05",
+      "category": "History - Digital Learning",
+      "type": "answerable",
+      "query": "How can students access the digital textbook and audio-visual teaching-learning material via DIKSHA App?",
+      "confidence": 0.95,
+      "latency_ms": 15724.04,
+      "passed": true
+    },
+    {
+      "id": "TC-06",
+      "category": "History - Subject Committee",
+      "type": "answerable",
+      "query": "Who is the Chairman of the History Subject Committee and where is the Textbook Bureau located?",
+      "confidence": 0.95,
+      "latency_ms": 34957.92,
+      "passed": true
+    },
+    {
+      "id": "TC-07",
+      "category": "Multi-Evidence Synthesis",
+      "type": "multi_evidence",
+      "query": "Compare the production bureau and location between the Mathematics and History textbooks.",
+      "confidence": 0.95,
+      "latency_ms": 17239.04,
+      "passed": true
+    },
+    {
+      "id": "TC-08",
+      "category": "Internal - Engineering Handbook",
+      "type": "answerable",
+      "query": "What is HireKiwi's response SLO and resolution target for SEV-1 incidents?",
+      "confidence": 0.95,
+      "latency_ms": 22617.72,
+      "passed": true
+    },
+    {
+      "id": "TC-09",
+      "category": "Internal - Cloud Security Policy",
+      "type": "answerable",
+      "query": "What are the encryption at rest standards and KMS key rotation requirements?",
+      "confidence": 0.95,
+      "latency_ms": 13489.71,
+      "passed": true
+    },
+    {
+      "id": "TC-10",
+      "category": "Reliability - Refusal (Food)",
+      "type": "unanswerable",
+      "query": "What is the secret recipe for dark chocolate lava cake according to the textbook?",
+      "confidence": 0.0,
+      "latency_ms": 18782.52,
+      "passed": true
+    },
+    {
+      "id": "TC-11",
+      "category": "Reliability - Refusal (Financials)",
+      "type": "unanswerable",
+      "query": "What were the quarterly revenue numbers of HireKiwi in Q3 2025?",
+      "confidence": 0.0,
+      "latency_ms": 15649.53,
+      "passed": true
+    },
+    {
+      "id": "TC-12",
+      "category": "External OOD - Corrective Web Search",
+      "type": "corrective_web",
+      "query": "What are the latest features released in Python 3.12?",
+      "confidence": 0.75,
+      "latency_ms": 11388.8,
+      "passed": true
+    }
+  ]
+}
