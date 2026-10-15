@@ -2,11 +2,17 @@
 
 import json
 import logging
+import sys
 import time
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import AsyncGenerator
 
-from pathlib import Path
+# Automatically ensure backend dir is in sys.path for direct python execution
+_backend_dir = str(Path(__file__).resolve().parent.parent)
+if _backend_dir not in sys.path:
+    sys.path.insert(0, _backend_dir)
+
 from fastapi import FastAPI, File, HTTPException, Request, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
@@ -318,3 +324,15 @@ async def clear_documents():
     """Clears all indexed documents from ChromaDB."""
     vector_store_service.clear_collection()
     return {"status": "success", "message": "All documents cleared from vector store."}
+
+
+if __name__ == "__main__":
+    import os
+    import uvicorn
+
+    port = int(os.environ.get("PORT", 10000))
+    host = os.environ.get("HOST", "0.0.0.0")
+    backend_dir = str(Path(__file__).resolve().parent.parent)
+    logger.info("Starting uvicorn server on %s:%d (app_dir=%s)...", host, port, backend_dir)
+    uvicorn.run("app.main:app", host=host, port=port, app_dir=backend_dir)
+

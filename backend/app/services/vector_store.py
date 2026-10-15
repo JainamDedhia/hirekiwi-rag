@@ -86,7 +86,16 @@ class VectorStoreService:
             except Exception as e:
                 logger.warning("OpenAI embedding setup failed: %s. Falling back to default.", e)
 
-        # Fallback to Sentence Transformers or Chroma default
+        # Prefer Chroma's fast, lightweight DefaultEmbeddingFunction (ONNX, <50MB RAM, zero PyTorch bloat)
+        try:
+            from chromadb.utils import embedding_functions
+
+            self._embedding_function = embedding_functions.DefaultEmbeddingFunction()
+            logger.info("Using Chroma DefaultEmbeddingFunction (ONNX all-MiniLM-L6-v2).")
+            return
+        except Exception as onnx_err:
+            logger.warning("DefaultEmbeddingFunction fallback to sentence-transformers: %s", onnx_err)
+
         try:
             from chromadb.utils import embedding_functions
 
@@ -96,15 +105,9 @@ class VectorStoreService:
                 )
             )
             logger.info("Using SentenceTransformer embeddings: all-MiniLM-L6-v2")
-        except Exception:
-            try:
-                from chromadb.utils import embedding_functions
-
-                self._embedding_function = embedding_functions.DefaultEmbeddingFunction()
-                logger.info("Using Chroma DefaultEmbeddingFunction (ONNX all-MiniLM-L6-v2).")
-            except Exception as def_err:
-                logger.warning("Default embedding function unavailable: %s", def_err)
-                self._embedding_function = None
+        except Exception as def_err:
+            logger.warning("Default embedding function unavailable: %s", def_err)
+            self._embedding_function = None
 
     def add_documents(self, chunks: List[DocumentChunk]) -> int:
         """Adds a list of document chunks into ChromaDB."""
