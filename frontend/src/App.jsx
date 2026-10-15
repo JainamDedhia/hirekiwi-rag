@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import {
   Send,
   Bot,
@@ -27,6 +29,104 @@ import {
   UploadCloud,
   ShieldCheck,
 } from 'lucide-react';
+
+function MarkdownMessage({ content, isUser }) {
+  if (isUser) {
+    return <div className="text-xs sm:text-sm leading-relaxed whitespace-pre-wrap">{content}</div>;
+  }
+
+  // Sanitize raw <br> tags into markdown line breaks and clean citations
+  const sanitized = (content || '')
+    .replace(/<br\s*\/?>/gi, '\n\n')
+    .replace(/【(.*?)】/g, '[$1]');
+
+  return (
+    <div className="text-xs sm:text-sm leading-relaxed text-zinc-200 space-y-2">
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        components={{
+          h1: ({ children }) => (
+            <h1 className="text-base sm:text-lg font-bold text-white mt-3 mb-2 pb-1 border-b border-zinc-800 flex items-center gap-2">
+              {children}
+            </h1>
+          ),
+          h2: ({ children }) => (
+            <h2 className="text-sm sm:text-base font-bold text-zinc-100 mt-3 mb-1.5 pb-0.5 border-b border-zinc-800/80">
+              {children}
+            </h2>
+          ),
+          h3: ({ children }) => (
+            <h3 className="text-xs sm:text-sm font-semibold text-indigo-300 mt-2.5 mb-1 flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 inline-block"></span>
+              {children}
+            </h3>
+          ),
+          h4: ({ children }) => (
+            <h4 className="text-xs font-semibold text-zinc-200 mt-2 mb-0.5">{children}</h4>
+          ),
+          p: ({ children }) => (
+            <p className="my-1.5 leading-relaxed text-zinc-300">{children}</p>
+          ),
+          ul: ({ children }) => (
+            <ul className="list-disc pl-5 space-y-1 my-2 text-zinc-300">{children}</ul>
+          ),
+          ol: ({ children }) => (
+            <ol className="list-decimal pl-5 space-y-1 my-2 text-zinc-300">{children}</ol>
+          ),
+          li: ({ children }) => (
+            <li className="leading-relaxed pl-0.5">{children}</li>
+          ),
+          table: ({ children }) => (
+            <div className="overflow-x-auto my-3 rounded-xl border border-zinc-700/80 bg-zinc-950/80 shadow-md">
+              <table className="w-full text-left text-xs border-collapse">{children}</table>
+            </div>
+          ),
+          thead: ({ children }) => (
+            <thead className="bg-zinc-800/90 text-zinc-200 uppercase text-[10px] tracking-wider border-b border-zinc-700/80">
+              {children}
+            </thead>
+          ),
+          tbody: ({ children }) => (
+            <tbody className="divide-y divide-zinc-800/80 text-zinc-300">{children}</tbody>
+          ),
+          tr: ({ children }) => (
+            <tr className="hover:bg-zinc-850/60 transition-colors divide-x divide-zinc-800/40">{children}</tr>
+          ),
+          th: ({ children }) => (
+            <th className="py-2.5 px-3 font-semibold text-zinc-200 whitespace-nowrap">{children}</th>
+          ),
+          td: ({ children }) => (
+            <td className="py-2.5 px-3 align-top leading-relaxed text-zinc-300">{children}</td>
+          ),
+          blockquote: ({ children }) => (
+            <blockquote className="border-l-2 border-indigo-500 pl-3 py-1.5 my-2.5 bg-indigo-500/10 text-zinc-300 italic text-xs rounded-r">
+              {children}
+            </blockquote>
+          ),
+          code: ({ inline, children }) => {
+            if (inline) {
+              return (
+                <code className="px-1.5 py-0.5 rounded bg-zinc-800 text-indigo-300 font-mono text-[11px] border border-zinc-700/60">
+                  {children}
+                </code>
+              );
+            }
+            return (
+              <pre className="p-3 rounded-lg bg-zinc-950 border border-zinc-800 font-mono text-xs overflow-x-auto my-2 text-zinc-200">
+                <code>{children}</code>
+              </pre>
+            );
+          },
+          strong: ({ children }) => (
+            <strong className="font-semibold text-white">{children}</strong>
+          ),
+        }}
+      >
+        {sanitized}
+      </ReactMarkdown>
+    </div>
+  );
+}
 
 export default function App() {
   // Available documents from backend catalog
@@ -540,10 +640,10 @@ export default function App() {
                 )}
 
                 <div
-                  className={`max-w-2xl rounded-2xl p-4 space-y-3 ${
+                  className={`rounded-2xl p-4 space-y-3 transition-all ${
                     isUser
-                      ? 'bg-indigo-600/15 border border-indigo-500/30 text-zinc-100 rounded-tr-none'
-                      : 'glass-panel rounded-tl-none border border-zinc-800/80 text-zinc-200'
+                      ? 'max-w-xl bg-indigo-600/15 border border-indigo-500/30 text-zinc-100 rounded-tr-none'
+                      : 'w-full max-w-3xl lg:max-w-4xl glass-panel rounded-tl-none border border-zinc-800/80 text-zinc-200'
                   }`}
                 >
                   {/* Message Header */}
@@ -608,10 +708,8 @@ export default function App() {
                     )}
                   </div>
 
-                  {/* Message Content */}
-                  <div className="text-xs sm:text-sm leading-relaxed whitespace-pre-wrap font-sans">
-                    {msg.content}
-                  </div>
+                  {/* Message Content rendered as rich formatted Markdown */}
+                  <MarkdownMessage content={msg.content} isUser={isUser} />
 
                   {/* Evidence & Reranking Breakdown for Assistant Replies */}
                   {!isUser && msg.sources && msg.sources.length > 0 && (

@@ -388,12 +388,16 @@ class LLMGateway:
                     "Your primary goal is to answer the user's questions clearly, accurately, and thoroughly, grounded strictly in the provided internal documents and web search results.\n\n"
                     "CRITICAL GROUNDING AND CITATION RULES:\n"
                     "1. Grounding: Answer strictly using facts and content stated in the provided context. Do NOT invent, assume, or extrapolate facts.\n"
-                    "2. Document Overviews & Summaries: If the user asks what the document is about, summarize the chapter/document, or asks about its scope, synthesize a clear, structured overview highlighting its title, objectives, major topics, and observations directly from the retrieved text.\n"
+                    "2. Document Overviews & Summaries: If the user asks what the document is about, summarize the chapter/document, or asks about its scope, synthesize a clean, executive summary with bold headings ('### Document Overview', '### Key Objectives', '### Major Topics & Findings', '### Key Observations'). Use clean bullet points and short paragraphs.\n"
                     "3. Evidence: You MUST cite the source document name and page number or section in square brackets for every fact or claim (e.g. [chapter_01_Field_Visit.pdf | Page 8] or [engineering_handbook.md > On-Call Operations]).\n"
                     "4. Direct Excerpts: Include exact or near-exact excerpts from the documents as evidence to demonstrate trust.\n"
                     "5. Missing Information / Unanswerable Questions: If the documents do not contain enough information to answer the question, or if the question is off-topic/unanswerable from the provided material, you MUST state explicitly:\n"
                     "'The requested information is unavailable in the provided documents.'\n"
-                    "Do NOT attempt to guess or answer with unverified external knowledge unless external web results are explicitly provided in the context."
+                    "Do NOT attempt to guess or answer with unverified external knowledge unless external web results are explicitly provided in the context.\n\n"
+                    "STRICT FORMATTING RULES:\n"
+                    "- NEVER output wide ASCII markdown tables (e.g. do NOT use '| Aspect | Description | Source |'). Tables look cramped, ugly, and unreadable in chat bubbles.\n"
+                    "- NEVER use raw HTML tags such as '<br>', '<span>', or '<div>'. Use standard Markdown paragraphs and bullet points only.\n"
+                    "- Format cleanly with markdown bold, bullet lists (`- ...`), and section headers (`###`). Keep presentation clean, polished, and human-friendly."
                 )
 
                 user_prompt = (
