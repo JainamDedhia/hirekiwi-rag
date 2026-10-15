@@ -25,9 +25,14 @@ class GraphState(TypedDict):
 
     question: str
     generation: str
-    web_search: str  # "Yes" or "No"
+    action: str  # "conversational" | "search_documents"
+    conversational_response: Optional[str]
+    search_queries: List[str]
+    search_reasoning: str
+    is_overview_request: bool
     documents: List[DocumentChunk]
     filtered_documents: List[DocumentChunk]
+    web_search: str  # "Yes" or "No"
     transformed_query: str
     web_results: List[WebSearchResult]
     confidence: float
@@ -37,9 +42,6 @@ class GraphState(TypedDict):
     similarity_threshold: Optional[float]
     selected_documents: Optional[List[str]]
     chat_history: Optional[List[Dict[str, str]]]
-    intent: str
-    search_queries: List[str]
-    fetch_introductory_chunks: bool
 
 
 # ---------------------------------------------------------------------------
@@ -48,7 +50,7 @@ class GraphState(TypedDict):
 
 
 def understand_query(state: GraphState) -> Dict[str, Any]:
-    """Node: Uses LLM reasoning to decompose user query, identify intent, and generate optimal search queries."""
+    """Node: Uses LLM reasoning to understand user intent, small-talk vs research, and plans retrieval."""
     start_time = time.time()
     question = state["question"]
     selected_docs = state.get("selected_documents")
@@ -60,20 +62,21 @@ def understand_query(state: GraphState) -> Dict[str, Any]:
         chat_history=chat_history,
     )
 
-    intent = analysis.get("intent", "specific_query")
+    action = analysis.get("action", "search_documents")
+    conv_resp = analysis.get("conversational_response")
     search_queries = analysis.get("search_queries", [question])
-    fetch_intro = analysis.get("fetch_introductory_chunks", False)
-    explanation = analysis.get("explanation", "")
+    search_reasoning = analysis.get("search_reasoning", "")
+    is_overview = analysis.get("is_overview_request", False)
 
     duration_ms = (time.time() - start_time) * 1000.0
     step = PipelineStep(
         step_name="understand_query",
         status="completed",
         details={
-            "intent": intent,
+            "action": action,
+            "search_reasoning": search_reasoning,
             "search_queries": search_queries,
-            "fetch_introductory_chunks": fetch_intro,
-            "explanation": explanation,
+            "is_overview_request": is_overview,
             "selected_documents": selected_docs,
         },
         duration_ms=round(duration_ms, 2),
@@ -83,11 +86,41 @@ def understand_query(state: GraphState) -> Dict[str, Any]:
     new_trace.append(step)
 
     return {
-        "intent": intent,
+        "action": action,
+        "conversational_response": conv_resp,
         "search_queries": search_queries,
-        "fetch_introductory_chunks": fetch_intro,
+        "search_reasoning": search_reasoning,
+        "is_overview_request": is_overview,
         "trace": new_trace,
     }
+
+
+def format_conversational_response(state: GraphState) -> Dict[str, Any]:
+    """Node: Formats a direct conversational reply for greetings/small talk without searching documents."""
+    reply = (
+        state.get("conversational_response")
+        or "Hello! I am your AI Knowledge Assistant. How can I help you today? You can select any document above and ask me questions, request an overview, or explore specific topics."
+    )
+    step = PipelineStep(
+        step_name="conversational_reply",
+        status="completed",
+        details={"type": "direct_conversational_interaction"},
+        duration_ms=0.0,
+    )
+    new_trace = list(state.get("trace", []))
+    new_trace.append(step)
+    return {
+        "generation": reply,
+        "confidence": 1.0,
+        "trace": new_trace,
+    }
+
+
+def route_after_understanding(state: GraphState) -> str:
+    """Routes to direct conversational response or document retrieval."""
+    if state.get("action") == "conversational":
+        return "format_conversational_response"
+    return "retrieve"
 
 
 def retrieve(state: GraphState) -> Dict[str, Any]:
@@ -97,14 +130,13 @@ def retrieve(state: GraphState) -> Dict[str, Any]:
     search_queries = state.get("search_queries", [question])
     top_k = state.get("top_k", settings.RETRIEVAL_TOP_K)
     selected_docs = state.get("selected_documents")
-    fetch_intro = state.get("fetch_introductory_chunks", False)
-    intent = state.get("intent", "specific_query")
+    is_overview = state.get("is_overview_request", False)
 
     candidate_k = max(top_k * 2, settings.INITIAL_RETRIEVAL_K)
     all_candidates: Dict[str, DocumentChunk] = {}
 
     # 1. Fetch introductory chunks if overview requested for selected docs
-    if (fetch_intro or intent == "document_overview") and selected_docs:
+    if is_overview and selected_docs:
         intro_chunks = vector_store_service.get_introductory_chunks(
             selected_docs, max_chunks_per_doc=3
         )
@@ -143,7 +175,7 @@ def retrieve(state: GraphState) -> Dict[str, Any]:
         details={
             "candidates_retrieved": len(documents),
             "queries_executed": search_queries,
-            "introductory_chunks_included": len(all_candidates) if fetch_intro else 0,
+            "introductory_chunks_included": len(all_candidates) if is_overview else 0,
             "selected_filter": selected_docs,
             "doc_sources": list(set(d.source for d in documents)),
         },
@@ -191,8 +223,8 @@ def grade_documents(state: GraphState) -> Dict[str, Any]:
     question = state["question"]
     documents = state.get("documents", [])
     enable_web_search = state.get("enable_web_search", True)
-    intent = state.get("intent", "specific_query")
-    is_overview = (intent == "document_overview")
+    is_overview = state.get("is_overview_request", False)
+    search_reasoning = state.get("search_reasoning", "")
 
     filtered_docs: List[DocumentChunk] = []
     web_search_flag = "No"
@@ -210,6 +242,7 @@ def grade_documents(state: GraphState) -> Dict[str, Any]:
                 document_content=doc.content,
                 source=doc.source,
                 is_overview_query=is_overview,
+                search_reasoning=search_reasoning,
             )
             doc.relevance = "relevant" if is_rel else "irrelevant"
             doc.grade_reason = reason
@@ -433,6 +466,7 @@ def build_crag_graph():
 
     # Add Nodes
     workflow.add_node("understand_query", understand_query)
+    workflow.add_node("format_conversational_response", format_conversational_response)
     workflow.add_node("retrieve", retrieve)
     workflow.add_node("rerank", rerank_node)
     workflow.add_node("grade_documents", grade_documents)
@@ -443,8 +477,18 @@ def build_crag_graph():
     # Set Entry Point to Query Understanding & Search Planning
     workflow.set_entry_point("understand_query")
 
-    # Connect Planner to Retrieval, Retrieval to Reranker, then to Grader
-    workflow.add_edge("understand_query", "retrieve")
+    # Conditional Branch after understanding query: Conversational small talk vs Document Retrieval
+    workflow.add_conditional_edges(
+        "understand_query",
+        route_after_understanding,
+        {
+            "format_conversational_response": "format_conversational_response",
+            "retrieve": "retrieve",
+        },
+    )
+    workflow.add_edge("format_conversational_response", END)
+
+    # Document Research Pipeline
     workflow.add_edge("retrieve", "rerank")
     workflow.add_edge("rerank", "grade_documents")
 
@@ -487,6 +531,11 @@ def run_crag_pipeline(
     initial_state: GraphState = {
         "question": query,
         "generation": "",
+        "action": "search_documents",
+        "conversational_response": None,
+        "search_queries": [],
+        "search_reasoning": "",
+        "is_overview_request": False,
         "web_search": "No",
         "documents": [],
         "filtered_documents": [],
@@ -499,9 +548,6 @@ def run_crag_pipeline(
         "similarity_threshold": similarity_threshold,
         "selected_documents": selected_documents,
         "chat_history": chat_history,
-        "intent": "",
-        "search_queries": [],
-        "fetch_introductory_chunks": False,
     }
 
     try:

@@ -37,18 +37,14 @@ async def lifespan(app: FastAPI):
     """Application lifespan: seeds vector database if empty on startup."""
     logger.info("Initializing %s (Env: %s)...", settings.APP_NAME, settings.APP_ENV)
     try:
-        # Check if vector DB has data; if empty, ingest sample documents
+        ingest_result = ingestion_service.ingest_sample_documents(force_reload=False)
         stats = vector_store_service.get_collection_stats()
-        if stats["total_chunks"] == 0:
-            logger.info("Vector DB is empty. Automatically indexing sample documents...")
-            ingest_result = ingestion_service.ingest_sample_documents(force_reload=False)
-            logger.info(
-                "Auto-ingested %d chunks from %d sample documents.",
-                ingest_result.total_chunks,
-                ingest_result.documents_processed,
-            )
-        else:
-            logger.info("Vector DB ready with %d chunks.", stats["total_chunks"])
+        logger.info(
+            "Vector DB ready: %d total chunks across %d indexed documents (Startup status: %s).",
+            stats["total_chunks"],
+            len(stats["indexed_documents"]),
+            ingest_result.status,
+        )
     except Exception as e:
         logger.error("Error during startup vector DB initialization: %s", e)
     yield

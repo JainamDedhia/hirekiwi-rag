@@ -341,10 +341,18 @@ class IngestionService:
         )
 
     def ingest_sample_documents(self, force_reload: bool = False) -> IngestResponse:
-        """Ingests all discoverable PDF and markdown documents if collection is empty or forced."""
+        """Ingests all discoverable PDF and markdown documents if collection is empty, forced, or missing newly added files."""
         stats = vector_store_service.get_collection_stats()
-        if stats["total_chunks"] > 0 and not force_reload:
-            logger.info("ChromaDB already contains %d chunks. Skipping re-ingestion.", stats["total_chunks"])
+        indexed = set(stats["indexed_documents"])
+        discoverable = self.discover_documents()
+        missing = [f for f in discoverable if f.name not in indexed]
+
+        if not force_reload and stats["total_chunks"] > 0 and not missing:
+            logger.info(
+                "ChromaDB already contains %d chunks and all %d discoverable documents are indexed.",
+                stats["total_chunks"],
+                len(discoverable),
+            )
             return IngestResponse(
                 status="skipped",
                 documents_processed=len(stats["indexed_documents"]),
@@ -353,7 +361,31 @@ class IngestionService:
                 duration_ms=0.0,
             )
 
-        return self.ingest_directory(dir_path=None, force_reload=force_reload)
+        if force_reload:
+            return self.ingest_directory(dir_path=None, force_reload=True)
+
+        # Ingest missing files into existing index
+        start_time = time.time()
+        new_chunks: List[DocumentChunk] = []
+        new_processed: List[str] = []
+        for file_path in missing:
+            try:
+                chunks = self.ingest_file(file_path)
+                new_chunks.extend(chunks)
+                new_processed.append(file_path.name)
+                logger.info("Ingested missing document %s (%d chunks)", file_path.name, len(chunks))
+            except Exception as e:
+                logger.error("Failed to ingest missing document %s: %s", file_path.name, e)
+
+        duration = (time.time() - start_time) * 1000.0
+        latest_stats = vector_store_service.get_collection_stats()
+        return IngestResponse(
+            status="success",
+            documents_processed=len(new_processed),
+            total_chunks=latest_stats["total_chunks"],
+            sources=latest_stats["indexed_documents"],
+            duration_ms=round(duration, 2),
+        )
 
     def get_document_catalog(self) -> List[Dict[str, Any]]:
         """Returns detailed metadata about all documents currently indexed or discoverable."""

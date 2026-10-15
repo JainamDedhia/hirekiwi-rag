@@ -62,40 +62,17 @@ class LLMGateway:
         selected_documents: Optional[List[str]] = None,
         chat_history: Optional[List[Dict[str, str]]] = None,
     ) -> Dict[str, Any]:
-        """Analyzes user intent, resolves coreferences, and generates targeted search queries.
+        """Uses the LLM to understand query intent, handle conversational messages, and plan search queries.
 
         Returns:
             {
-                "intent": "document_overview" | "specific_query" | "external_search",
+                "action": "conversational" | "search_documents",
+                "conversational_response": str or None,
+                "search_reasoning": str,
                 "search_queries": [str],
-                "explanation": str,
-                "fetch_introductory_chunks": bool,
+                "is_overview_request": bool,
             }
         """
-        is_overview_phrase = any(
-            p in query.lower()
-            for p in [
-                "what is the document about",
-                "what is this document about",
-                "what is this pdf about",
-                "what is the pdf about",
-                "what is the chapter about",
-                "what is this chapter about",
-                "tell me about this document",
-                "tell me about this pdf",
-                "summary of",
-                "summarize",
-                "overview of",
-                "what does this cover",
-                "what does this talk about",
-                "what are the contents",
-                "what is in this document",
-                "what is in this pdf",
-                "explain this document",
-                "about the document",
-            ]
-        )
-
         if self._llm:
             try:
                 from langchain_core.messages import HumanMessage, SystemMessage
@@ -103,6 +80,8 @@ class LLMGateway:
                 doc_context_str = ""
                 if selected_documents:
                     doc_context_str = f"Selected Document(s): {', '.join(selected_documents)}\n"
+                else:
+                    doc_context_str = "Selected Document(s): All Documents\n"
 
                 history_str = ""
                 if chat_history and len(chat_history) > 0:
@@ -113,23 +92,23 @@ class LLMGateway:
                     history_str = "Conversation Context:\n" + "\n".join(recent) + "\n"
 
                 prompt = (
-                    "You are an expert AI Query Analyzer and Search Planner for a Corrective RAG system.\n"
-                    "Analyze the user's question, conversation context, and selected documents.\n\n"
-                    "TASKS:\n"
-                    "1. Classify intent into one of:\n"
-                    "   - 'document_overview': The user wants a summary, high-level overview, topic list, or wants to know what the document/chapter is about.\n"
-                    "   - 'specific_query': The user is asking a specific factual, procedural, mathematical, or technical question.\n"
-                    "   - 'external_search': The user is asking for real-time external info (e.g. current weather, stock prices, external news).\n"
-                    "2. Generate 1 to 3 targeted search query strings optimized for semantic vector retrieval and BM25 search.\n"
-                    "   If 'document_overview', generate queries that target the introduction, title, preface, objectives, and main topics of the selected document.\n"
-                    "   If conversational references exist (e.g., 'what else', 'why did they do that?'), resolve them into explicit search keywords.\n"
-                    "3. Set 'fetch_introductory_chunks': true if the user wants an overview/summary of the document, false otherwise.\n\n"
-                    "Output JSON strictly with keys:\n"
+                    "You are an expert AI Knowledge Assistant and Intelligent Search Planner.\n"
+                    "You have access to an internal knowledge base of documents.\n\n"
+                    "Analyze the user's message, conversation context, and selected documents to determine the appropriate action:\n\n"
+                    "1. 'conversational': Use this if the user is greeting (e.g. 'hi', 'hello', 'hey'), thanking you, asking who you are, what you can do, or engaging in small talk.\n"
+                    "   - In 'conversational_response', provide a warm, helpful response introducing yourself as the HireKiwi AI Knowledge Assistant and inviting them to explore or ask questions about the loaded documents.\n"
+                    "   - Set 'search_queries' to [].\n\n"
+                    "2. 'search_documents': Use this if the user is asking about any subject, requesting a document summary/overview, asking factual questions, math/technical problems, or looking for specific info in the documents.\n"
+                    "   - In 'search_reasoning', clearly explain what specific knowledge or evidence needs to be retrieved from the documents.\n"
+                    "   - In 'search_queries', formulate 1 to 3 targeted search query strings optimized for semantic vector retrieval and BM25 search.\n"
+                    "   - Set 'is_overview_request' to true if the user wants an overview/summary of the document, false otherwise.\n\n"
+                    "Output strictly a JSON object with keys:\n"
                     "{\n"
-                    "  'intent': 'document_overview' | 'specific_query' | 'external_search',\n"
+                    "  'action': 'conversational' | 'search_documents',\n"
+                    "  'conversational_response': '...' (or null),\n"
+                    "  'search_reasoning': '...',\n"
                     "  'search_queries': ['query 1', 'query 2'],\n"
-                    "  'explanation': 'Brief 1-sentence rationale',\n"
-                    "  'fetch_introductory_chunks': true/false\n"
+                    "  'is_overview_request': true | false\n"
                     "}"
                 )
 
@@ -144,46 +123,37 @@ class LLMGateway:
                 json_match = re.search(r"\{.*\}", raw_json, re.DOTALL)
                 if json_match:
                     data = json.loads(json_match.group(0))
-                    queries = data.get("search_queries", [])
-                    if not isinstance(queries, list) or len(queries) == 0:
-                        queries = [query]
+                    action = data.get("action", "search_documents")
+                    search_queries = data.get("search_queries", [])
+                    if action == "search_documents" and (not isinstance(search_queries, list) or len(search_queries) == 0):
+                        search_queries = [query]
                     return {
-                        "intent": data.get(
-                            "intent",
-                            "document_overview" if is_overview_phrase else "specific_query",
-                        ),
-                        "search_queries": queries,
-                        "explanation": str(
-                            data.get("explanation", "Extracted intent and search keywords")
-                        ),
-                        "fetch_introductory_chunks": bool(
-                            data.get("fetch_introductory_chunks", is_overview_phrase)
-                        ),
+                        "action": action,
+                        "conversational_response": data.get("conversational_response"),
+                        "search_reasoning": str(data.get("search_reasoning", "")),
+                        "search_queries": search_queries,
+                        "is_overview_request": bool(data.get("is_overview_request", False)),
                     }
             except Exception as e:
                 logger.warning("LLM query understanding error: %s. Using heuristic planner.", e)
 
-        # Robust Heuristic Fallback
-        if is_overview_phrase:
-            queries = [query]
-            if selected_documents:
-                for doc in selected_documents:
-                    clean = re.sub(
-                        r"^(chapter_\d+_|\.pdf|\.md|\.txt)", "", doc, flags=re.IGNORECASE
-                    ).replace("_", " ")
-                    queries.append(f"{clean} introduction overview preface objectives")
+        # Fallback if LLM offline
+        q_clean = query.strip().lower()
+        if len(q_clean.split()) <= 2 and q_clean in {"hi", "hello", "hey", "hola", "greetings", "good morning", "good evening", "help"}:
             return {
-                "intent": "document_overview",
-                "search_queries": queries,
-                "explanation": "Identified high-level document overview / summary request",
-                "fetch_introductory_chunks": True,
+                "action": "conversational",
+                "conversational_response": "Hello! I am your AI Knowledge Assistant. How can I help you today? You can select any document above and ask me questions or request an overview.",
+                "search_reasoning": "",
+                "search_queries": [],
+                "is_overview_request": False,
             }
 
         return {
-            "intent": "specific_query",
+            "action": "search_documents",
+            "conversational_response": None,
+            "search_reasoning": "Searching corpus for relevant information matching user query",
             "search_queries": [query],
-            "explanation": "Identified specific information retrieval query",
-            "fetch_introductory_chunks": False,
+            "is_overview_request": False,
         }
 
     def grade_document_relevance(
@@ -192,44 +162,24 @@ class LLMGateway:
         document_content: str,
         source: str = "",
         is_overview_query: bool = False,
+        search_reasoning: str = "",
     ) -> Tuple[bool, str]:
         """Grades whether a document chunk is relevant to the user query.
 
         Returns (is_relevant: bool, reason: str).
         """
-        # If this is a document overview request, introductory/structural chunks of the selected doc are directly relevant
-        if is_overview_query:
-            c_low = document_content.lower()
-            overview_keywords = [
-                "preface",
-                "introduction",
-                "chapter",
-                "standard",
-                "class ten",
-                "class 10",
-                "welcome",
-                "textbook",
-                "study",
-                "geography",
-                "history",
-                "mathematics",
-                "equation",
-                "field visit",
-            ]
-            if any(k in c_low for k in overview_keywords) or len(document_content) > 100:
-                return True, "Chunk provides structural context or content for document overview."
-
         if self._llm:
             try:
                 from langchain_core.messages import HumanMessage, SystemMessage
 
                 system_prompt = (
-                    "You are a strict evaluation grader assessing relevance of a retrieved document to a user query.\n"
-                    "Grade 'yes' if the document contains semantic keywords, principles, facts, or introductory context "
-                    "directly relevant to answering the query. Grade 'no' if it is off-topic.\n"
+                    "You are an evaluation grader assessing relevance of a retrieved document to a user query and search intent.\n"
+                    "Grade 'yes' if the document contains facts, concepts, definitions, or introductory context "
+                    "relevant to answering the user inquiry. Grade 'no' only if it is completely off-topic.\n"
                     "Output JSON strictly with keys: 'relevant' (boolean: true/false) and 'reason' (string explaining evaluation)."
                 )
-                user_prompt = f"User Query: {query}\n\nDocument Chunk ({source}):\n{document_content}\n\nJSON output:"
+                reasoning_context = f"Search Reasoning: {search_reasoning}\n" if search_reasoning else ""
+                user_prompt = f"{reasoning_context}User Query: {query}\n\nDocument Chunk ({source}):\n{document_content}\n\nJSON output:"
 
                 response = self._llm.invoke(
                     [
@@ -239,7 +189,6 @@ class LLMGateway:
                 )
                 content = response.content.strip()
 
-                # Extract JSON if wrapped in markdown fences
                 json_match = re.search(r"\{.*?\}", content, re.DOTALL)
                 if json_match:
                     data = json.loads(json_match.group(0))
@@ -249,7 +198,6 @@ class LLMGateway:
             except Exception as ex:
                 logger.warning("LLM grading call failed (%s). Falling back to heuristic evaluator.", ex)
 
-        # Robust Heuristic Grader (for mock mode and network fallbacks)
         return self._heuristic_grade_relevance(
             query, document_content, source, is_overview_query=is_overview_query
         )

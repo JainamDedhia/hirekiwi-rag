@@ -591,7 +591,9 @@ export default function App() {
                           <span>
                             Trust Factor: {Math.round(msg.confidence * 100)}% &bull;{' '}
                             {msg.confidence >= 0.85
-                              ? 'High Grounding (Direct Document Evidence)'
+                              ? (msg.sources && msg.sources.length > 0
+                                  ? 'High Grounding (Direct Document Evidence)'
+                                  : 'Direct Conversational Interaction')
                               : msg.confidence > 0.0
                               ? 'Partial Evidence'
                               : 'Missing from Corpus'}
@@ -711,6 +713,8 @@ export default function App() {
                                 <span className="font-semibold text-indigo-400">
                                   {st.step_name === 'understand_query'
                                     ? '1. LLM Query Analyzer & Search Planner'
+                                    : st.step_name === 'conversational_reply'
+                                    ? '2. Direct Conversational Responder'
                                     : st.step_name === 'retrieve'
                                     ? '2. Vector Store Retrieval'
                                     : st.step_name === 'rerank'
@@ -731,10 +735,17 @@ export default function App() {
                                 <div className="text-zinc-400 text-[10px] pl-2 border-l border-zinc-800 space-y-0.5">
                                   {st.step_name === 'understand_query' && (
                                     <>
-                                      <div>Intent: <span className="text-zinc-200">{st.details.intent}</span></div>
-                                      {st.details.explanation && <div>Reasoning: <span className="text-zinc-300">{st.details.explanation}</span></div>}
-                                      {st.details.search_queries && <div>Planned Queries: <span className="text-violet-300">{JSON.stringify(st.details.search_queries)}</span></div>}
+                                      <div>Action: <span className="text-zinc-200">{st.details.action || st.details.intent}</span></div>
+                                      {(st.details.search_reasoning || st.details.explanation) && (
+                                        <div>Reasoning: <span className="text-zinc-300">{st.details.search_reasoning || st.details.explanation}</span></div>
+                                      )}
+                                      {st.details.search_queries && st.details.search_queries.length > 0 && (
+                                        <div>Planned Queries: <span className="text-violet-300">{JSON.stringify(st.details.search_queries)}</span></div>
+                                      )}
                                     </>
+                                  )}
+                                  {st.step_name === 'conversational_reply' && (
+                                    <div>Interaction: <span className="text-emerald-400">Direct Conversational Small Talk / Greeting (0 vector searches needed)</span></div>
                                   )}
                                   {st.step_name === 'retrieve' && (
                                     <div>Retrieved: <span className="text-zinc-200">{st.details.candidates_retrieved} candidate chunks</span> across {JSON.stringify(st.details.doc_sources || [])}</div>

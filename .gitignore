@@ -36,3 +36,6 @@ frontend/dist/
 # OS
 .DS_Store
 Thumbs.db
+
+# Vector DB
+data/chroma_db/
