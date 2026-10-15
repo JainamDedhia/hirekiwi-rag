@@ -132,6 +132,24 @@ function MarkdownMessage({ content, isUser }) {
 }
 
 export default function App() {
+  const getInitialApiUrl = () => {
+    try {
+      const saved = localStorage.getItem('hirekiwi_api_url');
+      if (saved && saved.trim()) return saved.trim().replace(/\/+$/, '');
+      const envUrl = import.meta.env.VITE_API_URL;
+      if (envUrl && envUrl.trim()) return envUrl.trim().replace(/\/+$/, '');
+    } catch (e) {
+      console.warn('Could not read saved api url', e);
+    }
+    return '';
+  };
+
+  const [apiUrl, setApiUrl] = useState(getInitialApiUrl);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [tempApiUrl, setTempApiUrl] = useState('');
+  const [testingConnection, setTestingConnection] = useState(false);
+  const [testStatus, setTestStatus] = useState(null);
+
   const [availableDocs, setAvailableDocs] = useState([]);
   const [selectedDocs, setSelectedDocs] = useState([]);
   const [uploading, setUploading] = useState(false);
@@ -182,16 +200,19 @@ export default function App() {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, loading]);
 
-  const fetchDocsAndHealth = async () => {
+  const fetchDocsAndHealth = async (overrideUrl = null) => {
+    const base = (overrideUrl !== null ? overrideUrl : apiUrl).trim().replace(/\/+$/, '');
     try {
       const [hRes, dRes] = await Promise.all([
-        fetch('/api/health'),
-        fetch('/api/documents'),
+        fetch(`${base}/api/health`),
+        fetch(`${base}/api/documents`),
       ]);
 
       if (hRes.ok) {
         const hData = await hRes.json();
         setHealth(hData);
+      } else {
+        setHealth((prev) => ({ ...prev, status: 'offline' }));
       }
       if (dRes.ok) {
         const dData = await dRes.json();
@@ -205,9 +226,9 @@ export default function App() {
 
   useEffect(() => {
     fetchDocsAndHealth();
-    const interval = setInterval(fetchDocsAndHealth, 10000);
+    const interval = setInterval(() => fetchDocsAndHealth(), 10000);
     return () => clearInterval(interval);
-  }, []);
+  }, [apiUrl]);
 
   const handleToggleDoc = (docName) => {
     setSelectedDocs((prev) => {
@@ -245,7 +266,8 @@ export default function App() {
     formData.append('file', file);
 
     try {
-      const res = await fetch('/api/documents/upload', {
+      const targetUrl = apiUrl ? `${apiUrl}/api/documents/upload` : '/api/documents/upload';
+      const res = await fetch(targetUrl, {
         method: 'POST',
         body: formData,
       });
@@ -295,7 +317,10 @@ export default function App() {
     }
 
     try {
-      const res = await fetch(`/api/documents/${encodeURIComponent(docName)}`, {
+      const targetUrl = apiUrl
+        ? `${apiUrl}/api/documents/${encodeURIComponent(docName)}`
+        : `/api/documents/${encodeURIComponent(docName)}`;
+      const res = await fetch(targetUrl, {
         method: 'DELETE',
       });
       if (!res.ok) {
@@ -332,8 +357,10 @@ export default function App() {
       .slice(-6)
       .map((m) => ({ role: m.role, content: m.content }));
 
+    const targetUrl = apiUrl ? `${apiUrl}/api/query` : '/api/query';
+
     try {
-      const res = await fetch('/api/query', {
+      const res = await fetch(targetUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -367,13 +394,20 @@ export default function App() {
       setMessages((prev) => [...prev, assistantMessage]);
     } catch (err) {
       console.error('Chat query error:', err);
+      const is404 = err.message && err.message.includes('404');
       const errorMessage = {
         id: `err-${Date.now()}`,
         role: 'assistant',
-        content: `Error retrieving answer: ${err.message}. Please verify the backend is running at http://127.0.0.1:8000.`,
+        content: `**Error communicating with backend**: ${err.message}\n\n` +
+          `Failed to reach backend endpoint at \`${targetUrl}\`.\n\n` +
+          (is404
+            ? `Your frontend on Vercel is sending requests to relative path \`/api/query\`, but your backend API is hosted on Render.\n\n` +
+              `👉 **Click "Connect Render Backend"** below and enter your Render service URL (for example: \`https://hirekiwi-rag.onrender.com\`).`
+            : `If your backend on Render is waking from sleep, Render free instances take ~30–45s to spin up. Please wait a moment and try again.`),
         sources: [],
         steps: [],
         confidence: 0.0,
+        isConnectionError: true,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       };
       setMessages((prev) => [...prev, errorMessage]);
@@ -480,6 +514,27 @@ export default function App() {
               <span>{health.vector_store_chunks || 101} Chunks</span>
             </div>
 
+            {/* Backend Endpoint Selector Button */}
+            <button
+              type="button"
+              onClick={() => {
+                setTempApiUrl(apiUrl || '');
+                setTestStatus(null);
+                setShowSettingsModal(true);
+              }}
+              className={`flex items-center space-x-1.5 px-2.5 py-1 rounded-md border text-xs font-mono transition-colors ${
+                apiUrl
+                  ? 'bg-[#14161B] hover:bg-[#1A1D24] border-white/[0.08] hover:border-white/20 text-zinc-300'
+                  : 'bg-[#5E6AD2]/15 hover:bg-[#5E6AD2]/25 border-[#5E6AD2]/40 text-[#A5AEF8]'
+              }`}
+              title="Configure Render backend URL"
+            >
+              <Globe className="w-3 h-3 text-[#5E6AD2]" />
+              <span className="max-w-[120px] truncate text-[11px]">
+                {apiUrl ? apiUrl.replace(/^https?:\/\//, '') : 'Set Backend URL'}
+              </span>
+            </button>
+
             <button
               onClick={handleClearChat}
               className="p-1.5 text-zinc-400 hover:text-zinc-200 hover:bg-[#1A1D24] rounded-md transition-colors"
@@ -490,6 +545,29 @@ export default function App() {
           </div>
         </div>
       </header>
+
+      {/* Warning Strip when deployed without custom backend URL */}
+      {!apiUrl && typeof window !== 'undefined' && !['localhost', '127.0.0.1'].includes(window.location.hostname) && (
+        <div className="bg-[#5E6AD2]/15 border-b border-[#5E6AD2]/30 px-4 py-2 text-xs flex items-center justify-between">
+          <div className="flex items-center space-x-2 text-zinc-200">
+            <Globe className="w-4 h-4 text-[#A5AEF8] shrink-0" />
+            <span>
+              <strong>Connect Render Backend</strong>: Set your Render service URL (e.g. <code className="text-[#A5AEF8] bg-black/40 px-1.5 py-0.5 rounded font-mono">https://hirekiwi-rag.onrender.com</code>) to enable questions.
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setTempApiUrl(apiUrl || '');
+              setTestStatus(null);
+              setShowSettingsModal(true);
+            }}
+            className="px-2.5 py-1 rounded bg-[#5E6AD2] hover:bg-[#4E5AC0] text-white text-[11px] font-semibold transition-all shrink-0 ml-3 shadow-sm"
+          >
+            Connect Backend
+          </button>
+        </div>
+      )}
 
       {/* Target Document Selector Strip */}
       <section className="border-b border-white/[0.07] bg-[#0E0F12] px-4 py-2.5">
@@ -728,6 +806,24 @@ export default function App() {
 
                   {/* Message Content rendered as rich formatted Markdown */}
                   <MarkdownMessage content={msg.content} isUser={isUser} />
+
+                  {/* Connect Backend Action Button on Connection Failures */}
+                  {msg.isConnectionError && (
+                    <div className="pt-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setTempApiUrl(apiUrl || '');
+                          setTestStatus(null);
+                          setShowSettingsModal(true);
+                        }}
+                        className="px-3.5 py-2 rounded-lg text-xs font-medium bg-[#5E6AD2] hover:bg-[#4E5AC0] text-white flex items-center space-x-2 transition-all shadow-md active:scale-95"
+                      >
+                        <Globe className="w-3.5 h-3.5" />
+                        <span>Connect Render Backend</span>
+                      </button>
+                    </div>
+                  )}
 
                   {/* Evidence Drawer for Assistant Replies */}
                   {!isUser && msg.sources && msg.sources.length > 0 && (
@@ -1007,6 +1103,147 @@ export default function App() {
           </form>
         </div>
       </main>
+
+      {/* Backend Connection Settings Modal */}
+      {showSettingsModal && (
+        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-[#121317] border border-white/[0.12] rounded-xl max-w-md w-full p-5 space-y-4 shadow-2xl animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between border-b border-white/[0.08] pb-3">
+              <div className="flex items-center space-x-2">
+                <Globe className="w-4 h-4 text-[#5E6AD2]" />
+                <h3 className="font-semibold text-sm text-white">Backend API Endpoint</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowSettingsModal(false)}
+                className="text-zinc-400 hover:text-white p-1 rounded transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div>
+                <label className="block text-zinc-300 font-medium mb-1">
+                  Render Backend Service URL
+                </label>
+                <input
+                  type="url"
+                  value={tempApiUrl}
+                  onChange={(e) => setTempApiUrl(e.target.value)}
+                  placeholder="https://hirekiwi-rag.onrender.com"
+                  className="w-full px-3 py-2 bg-[#0E0F12] border border-white/[0.12] rounded-lg text-white font-mono text-xs focus:outline-none focus:border-[#5E6AD2] transition-colors"
+                />
+                <p className="text-[11px] text-zinc-400 mt-1.5 leading-relaxed">
+                  Enter your deployed Render web service URL. Leave empty for local development reverse proxy.
+                </p>
+              </div>
+
+              {testStatus && (
+                <div
+                  className={`p-3 rounded-lg border text-xs flex items-start space-x-2.5 ${
+                    testStatus.success
+                      ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
+                      : 'bg-rose-500/10 border-rose-500/30 text-rose-300'
+                  }`}
+                >
+                  {testStatus.success ? (
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                  ) : (
+                    <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+                  )}
+                  <div className="space-y-0.5">
+                    <span className="font-semibold">
+                      {testStatus.success ? 'Backend Connected!' : 'Connection Failed'}
+                    </span>
+                    <p className="text-[11px] opacity-90">{testStatus.message}</p>
+                  </div>
+                </div>
+              )}
+
+              <div className="bg-[#16181F] border border-white/[0.06] rounded-lg p-3 text-[11px] text-zinc-400 space-y-1.5">
+                <div className="flex items-center space-x-1.5 text-zinc-300 font-medium">
+                  <Sparkles className="w-3.5 h-3.5 text-[#5E6AD2]" />
+                  <span>Render Free Tier Notice</span>
+                </div>
+                <p className="leading-relaxed">
+                  Render instances on the free plan spin down after 15 minutes of inactivity. When woken up, the initial request takes ~30–45 seconds.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between pt-2 border-t border-white/[0.08]">
+              <button
+                type="button"
+                onClick={async () => {
+                  setTestingConnection(true);
+                  setTestStatus(null);
+                  const target = tempApiUrl.trim().replace(/\/+$/, '');
+                  const startTime = Date.now();
+                  try {
+                    const res = await fetch(`${target}/api/health`);
+                    const latency = Date.now() - startTime;
+                    if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+                    const data = await res.json();
+                    setTestStatus({
+                      success: true,
+                      message: `Healthy (${latency}ms, ${data.vector_store_chunks || 0} chunks, LLM: ${data.llm_provider})`,
+                    });
+                  } catch (err) {
+                    setTestStatus({
+                      success: false,
+                      message: `Failed to connect to ${target || 'local proxy'}: ${err.message}`,
+                    });
+                  } finally {
+                    setTestingConnection(false);
+                  }
+                }}
+                disabled={testingConnection}
+                className="px-3 py-1.5 rounded-lg border border-white/[0.12] hover:bg-[#1C1F26] text-zinc-300 text-xs font-medium transition-colors disabled:opacity-50"
+              >
+                {testingConnection ? 'Pinging...' : 'Test Ping'}
+              </button>
+
+              <div className="flex items-center space-x-2">
+                {apiUrl && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTempApiUrl('');
+                      setApiUrl('');
+                      localStorage.removeItem('hirekiwi_api_url');
+                      showToast('Reset to local default proxy', 'success');
+                      setShowSettingsModal(false);
+                      fetchDocsAndHealth('');
+                    }}
+                    className="px-3 py-1.5 rounded-lg text-xs text-zinc-400 hover:text-white transition-colors"
+                  >
+                    Reset
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    const clean = tempApiUrl.trim().replace(/\/+$/, '');
+                    setApiUrl(clean);
+                    if (clean) {
+                      localStorage.setItem('hirekiwi_api_url', clean);
+                    } else {
+                      localStorage.removeItem('hirekiwi_api_url');
+                    }
+                    showToast(clean ? `Connected to ${clean}` : 'Using default backend', 'success');
+                    setShowSettingsModal(false);
+                    fetchDocsAndHealth(clean);
+                  }}
+                  className="px-3.5 py-1.5 rounded-lg bg-[#5E6AD2] hover:bg-[#4E5AC0] text-white text-xs font-semibold shadow-sm transition-colors"
+                >
+                  Save &amp; Connect
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -71,11 +71,11 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS Configuration
+# CORS Configuration - Allow all origins for Vercel / Render cross-origin deployment
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.CORS_ORIGINS if isinstance(settings.CORS_ORIGINS, list) else ["*"],
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -84,6 +84,18 @@ app.add_middleware(
 # ---------------------------------------------------------------------------
 # API Endpoints
 # ---------------------------------------------------------------------------
+
+
+@app.get("/")
+async def root():
+    """Root endpoint to verify service is alive and healthy."""
+    return {
+        "status": "healthy",
+        "service": settings.APP_NAME,
+        "version": "1.0.0",
+        "health": "/api/health",
+        "docs": "/docs",
+    }
 
 
 @app.get("/api/health", response_model=HealthResponse)
