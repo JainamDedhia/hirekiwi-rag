@@ -17,7 +17,6 @@ import {
   ChevronUp,
   FileText,
   BookOpen,
-  Sparkles,
   Sliders,
   Trash2,
   Info,
@@ -26,93 +25,97 @@ import {
   Filter,
   Plus,
   X,
-  UploadCloud,
   ShieldCheck,
+  Sparkles,
+  Search,
+  ExternalLink,
+  CornerDownLeft,
 } from 'lucide-react';
 
+// Custom rich markdown message renderer
 function MarkdownMessage({ content, isUser }) {
   if (isUser) {
-    return <div className="text-xs sm:text-sm leading-relaxed whitespace-pre-wrap">{content}</div>;
+    return <div className="text-[13px] sm:text-sm leading-relaxed whitespace-pre-wrap">{content}</div>;
   }
 
-  // Sanitize raw <br> tags into markdown line breaks and clean citations
+  // Sanitize raw <br> tags into markdown line breaks and normalize square citations
   const sanitized = (content || '')
     .replace(/<br\s*\/?>/gi, '\n\n')
     .replace(/【(.*?)】/g, '[$1]');
 
   return (
-    <div className="text-xs sm:text-sm leading-relaxed text-zinc-200 space-y-2">
+    <div className="text-[13px] sm:text-sm leading-relaxed text-[#D4D4D8] space-y-2.5">
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
           h1: ({ children }) => (
-            <h1 className="text-base sm:text-lg font-bold text-white mt-3 mb-2 pb-1 border-b border-zinc-800 flex items-center gap-2">
+            <h1 className="text-base sm:text-lg font-bold text-white mt-4 mb-2 pb-1.5 border-b border-white/[0.08] flex items-center gap-2">
               {children}
             </h1>
           ),
           h2: ({ children }) => (
-            <h2 className="text-sm sm:text-base font-bold text-zinc-100 mt-3 mb-1.5 pb-0.5 border-b border-zinc-800/80">
+            <h2 className="text-sm sm:text-base font-bold text-[#EDEDED] mt-3.5 mb-1.5 pb-1 border-b border-white/[0.06]">
               {children}
             </h2>
           ),
           h3: ({ children }) => (
-            <h3 className="text-xs sm:text-sm font-semibold text-indigo-300 mt-2.5 mb-1 flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 inline-block"></span>
+            <h3 className="text-xs sm:text-sm font-semibold text-white mt-3 mb-1 flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#5E6AD2] inline-block"></span>
               {children}
             </h3>
           ),
           h4: ({ children }) => (
-            <h4 className="text-xs font-semibold text-zinc-200 mt-2 mb-0.5">{children}</h4>
+            <h4 className="text-xs font-semibold text-zinc-300 mt-2 mb-0.5">{children}</h4>
           ),
           p: ({ children }) => (
-            <p className="my-1.5 leading-relaxed text-zinc-300">{children}</p>
+            <p className="my-1.5 leading-relaxed text-[#D4D4D8]">{children}</p>
           ),
           ul: ({ children }) => (
-            <ul className="list-disc pl-5 space-y-1 my-2 text-zinc-300">{children}</ul>
+            <ul className="list-disc pl-5 space-y-1 my-2 text-[#D4D4D8] marker:text-zinc-500">{children}</ul>
           ),
           ol: ({ children }) => (
-            <ol className="list-decimal pl-5 space-y-1 my-2 text-zinc-300">{children}</ol>
+            <ol className="list-decimal pl-5 space-y-1 my-2 text-[#D4D4D8] marker:text-zinc-500">{children}</ol>
           ),
           li: ({ children }) => (
-            <li className="leading-relaxed pl-0.5">{children}</li>
+            <li className="leading-relaxed pl-1">{children}</li>
           ),
           table: ({ children }) => (
-            <div className="overflow-x-auto my-3 rounded-xl border border-zinc-700/80 bg-zinc-950/80 shadow-md">
+            <div className="overflow-x-auto my-3 rounded-lg border border-white/[0.08] bg-[#0E0F12] shadow-sm">
               <table className="w-full text-left text-xs border-collapse">{children}</table>
             </div>
           ),
           thead: ({ children }) => (
-            <thead className="bg-zinc-800/90 text-zinc-200 uppercase text-[10px] tracking-wider border-b border-zinc-700/80">
+            <thead className="bg-[#16181D] text-zinc-300 uppercase text-[10px] tracking-wider border-b border-white/[0.08]">
               {children}
             </thead>
           ),
           tbody: ({ children }) => (
-            <tbody className="divide-y divide-zinc-800/80 text-zinc-300">{children}</tbody>
+            <tbody className="divide-y divide-white/[0.05] text-zinc-300">{children}</tbody>
           ),
           tr: ({ children }) => (
-            <tr className="hover:bg-zinc-850/60 transition-colors divide-x divide-zinc-800/40">{children}</tr>
+            <tr className="hover:bg-white/[0.02] transition-colors divide-x divide-white/[0.04]">{children}</tr>
           ),
           th: ({ children }) => (
-            <th className="py-2.5 px-3 font-semibold text-zinc-200 whitespace-nowrap">{children}</th>
+            <th className="py-2.5 px-3.5 font-semibold text-zinc-200 whitespace-nowrap">{children}</th>
           ),
           td: ({ children }) => (
-            <td className="py-2.5 px-3 align-top leading-relaxed text-zinc-300">{children}</td>
+            <td className="py-2.5 px-3.5 align-top leading-relaxed text-zinc-300">{children}</td>
           ),
           blockquote: ({ children }) => (
-            <blockquote className="border-l-2 border-indigo-500 pl-3 py-1.5 my-2.5 bg-indigo-500/10 text-zinc-300 italic text-xs rounded-r">
+            <blockquote className="border-l-2 border-[#5E6AD2] pl-3 py-1.5 my-2.5 bg-[#5E6AD2]/5 text-zinc-300 italic text-xs rounded-r">
               {children}
             </blockquote>
           ),
           code: ({ inline, children }) => {
             if (inline) {
               return (
-                <code className="px-1.5 py-0.5 rounded bg-zinc-800 text-indigo-300 font-mono text-[11px] border border-zinc-700/60">
+                <code className="px-1.5 py-0.5 rounded bg-[#1A1D24] text-zinc-200 font-mono text-[11px] border border-white/[0.08]">
                   {children}
                 </code>
               );
             }
             return (
-              <pre className="p-3 rounded-lg bg-zinc-950 border border-zinc-800 font-mono text-xs overflow-x-auto my-2 text-zinc-200">
+              <pre className="p-3.5 rounded-lg bg-[#0E0F12] border border-white/[0.08] font-mono text-xs overflow-x-auto my-2 text-zinc-200">
                 <code>{children}</code>
               </pre>
             );
@@ -129,14 +132,10 @@ function MarkdownMessage({ content, isUser }) {
 }
 
 export default function App() {
-  // Available documents from backend catalog
   const [availableDocs, setAvailableDocs] = useState([]);
-  // Selected document filenames (empty array = all documents)
   const [selectedDocs, setSelectedDocs] = useState([]);
-
-  // File upload state & notifications
   const [uploading, setUploading] = useState(false);
-  const [notification, setNotification] = useState(null); // { type: 'success' | 'error', message: string }
+  const [notification, setNotification] = useState(null);
   const fileInputRef = useRef(null);
 
   const showToast = (message, type = 'success') => {
@@ -146,13 +145,16 @@ export default function App() {
     }, 4500);
   };
 
-  // Chat message state: [{ id, role: 'user' | 'assistant', content, sources, steps, confidence, web_search_used, latency_ms }]
   const [messages, setMessages] = useState([
     {
       id: 'welcome',
       role: 'assistant',
       content:
-        "Hello! I am your AI Knowledge Assistant. Select which PDF(s) or policies you want me to search above, and ask me any question.\n\nI will retrieve relevant chunks from ChromaDB, rerank them using Hybrid BM25 + Dense RRF, cite source documents and page numbers, and strictly avoid inventing facts.",
+        "### Welcome to the HireKiwi Knowledge Assistant\n" +
+        "I provide strictly grounded, evidence-backed answers from your document collection using **Corrective RAG (CRAG)** with hybrid dense-lexical reranking.\n\n" +
+        "- **Evidence Citations**: Every claim is cited with the exact document name and page number (`[doc | Page X]`).\n" +
+        "- **Zero Hallucination**: When information is unavailable in the corpus, I clearly acknowledge missing data.\n" +
+        "- **Targeted Scope**: You can select specific PDFs above or search across all loaded documents.",
       sources: [],
       steps: [],
       confidence: 1.0,
@@ -168,21 +170,18 @@ export default function App() {
   const [expandedSources, setExpandedSources] = useState({});
   const [expandedSteps, setExpandedSteps] = useState({});
 
-  // System status
   const [health, setHealth] = useState({
     status: 'connecting',
     llm_provider: 'groq',
-    vector_store_chunks: 0,
+    vector_store_chunks: 101,
   });
 
   const chatEndRef = useRef(null);
 
-  // Auto-scroll to bottom of chat
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, loading]);
 
-  // Fetch document catalog and health
   const fetchDocsAndHealth = async () => {
     try {
       const [hRes, dRes] = await Promise.all([
@@ -210,7 +209,6 @@ export default function App() {
     return () => clearInterval(interval);
   }, []);
 
-  // Toggle document selection
   const handleToggleDoc = (docName) => {
     setSelectedDocs((prev) => {
       if (prev.includes(docName)) {
@@ -225,12 +223,9 @@ export default function App() {
     setSelectedDocs([]);
   };
 
-  // Upload and dynamically index document
   const handleFileUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
-    // Reset input so user can re-upload if needed
     e.target.value = '';
 
     const validExtensions = ['.pdf', '.md', '.markdown', '.txt'];
@@ -262,11 +257,8 @@ export default function App() {
 
       const data = await res.json();
       showToast(`Indexed "${data.name}" (${data.chunks} chunks)!`, 'success');
-
-      // Refresh available documents and health
       await fetchDocsAndHealth();
 
-      // Automatically select the new document so the user can immediately query it
       setSelectedDocs((prev) => {
         if (!prev.includes(data.name)) {
           return [...prev, data.name];
@@ -274,13 +266,12 @@ export default function App() {
         return prev;
       });
 
-      // Insert confirmation in chat
       setMessages((prev) => [
         ...prev,
         {
           id: `upload-${Date.now()}`,
           role: 'assistant',
-          content: `Added and indexed **${data.name}** into ChromaDB (${data.chunks} chunks${
+          content: `Indexed **${data.name}** into ChromaDB (${data.chunks} chunks${
             data.pages ? `, ${data.pages} pages` : ''
           }). It is now active and selected for queries.`,
           sources: [],
@@ -297,7 +288,6 @@ export default function App() {
     }
   };
 
-  // Delete document from vector store and disk
   const handleDeleteDoc = async (docName, e) => {
     e.stopPropagation();
     if (!window.confirm(`Delete "${docName}" and remove all its chunks from the vector store?`)) {
@@ -320,11 +310,11 @@ export default function App() {
     }
   };
 
-  // Submit chat message
-  const handleSendMessage = async (e) => {
-    if (e) e.preventDefault();
-    const query = inputQuery.trim();
+  const executeQuery = async (queryText, targetDocs = null) => {
+    const query = queryText.trim();
     if (!query || loading) return;
+
+    const activeDocs = targetDocs !== null ? targetDocs : selectedDocs;
 
     const userMessage = {
       id: `user-${Date.now()}`,
@@ -337,7 +327,6 @@ export default function App() {
     setInputQuery('');
     setLoading(true);
 
-    // Format chat history for context
     const historyPayload = messages
       .filter((m) => m.id !== 'welcome')
       .slice(-6)
@@ -351,7 +340,7 @@ export default function App() {
           query: query,
           top_k: Number(topK),
           enable_web_search: Boolean(enableWebSearch),
-          selected_documents: selectedDocs.length > 0 ? selectedDocs : null,
+          selected_documents: activeDocs.length > 0 ? activeDocs : null,
           chat_history: historyPayload,
         }),
       });
@@ -371,7 +360,7 @@ export default function App() {
         confidence: data.confidence_score,
         web_search_used: data.web_search_used,
         latency_ms: data.total_latency_ms,
-        filtered_docs: selectedDocs.length > 0 ? selectedDocs : ['All Documents'],
+        filtered_docs: activeDocs.length > 0 ? activeDocs : ['All Documents'],
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       };
 
@@ -381,7 +370,7 @@ export default function App() {
       const errorMessage = {
         id: `err-${Date.now()}`,
         role: 'assistant',
-        content: `Error retrieving answer: ${err.message}. Please verify the FastAPI backend is running at http://localhost:8000.`,
+        content: `Error retrieving answer: ${err.message}. Please verify the backend is running at http://127.0.0.1:8000.`,
         sources: [],
         steps: [],
         confidence: 0.0,
@@ -391,6 +380,11 @@ export default function App() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSendMessage = (e) => {
+    if (e) e.preventDefault();
+    executeQuery(inputQuery);
   };
 
   const handleCopy = (id, text) => {
@@ -405,7 +399,7 @@ export default function App() {
         id: 'welcome',
         role: 'assistant',
         content:
-          "Chat cleared. Select the document(s) you wish to search above and ask any question.",
+          "### Chat Cleared\nSelect the document(s) you wish to search above and ask any question.",
         sources: [],
         steps: [],
         confidence: 1.0,
@@ -414,86 +408,106 @@ export default function App() {
     ]);
   };
 
-  // Calculate active chunk count based on selected documents
   const activeChunkCount = availableDocs
     .filter((d) => selectedDocs.length === 0 || selectedDocs.includes(d.name))
     .reduce((sum, d) => sum + (d.chunks || 0), 0);
 
+  // Suggested Quick Queries for initial exploration
+  const quickPrompts = [
+    {
+      title: "📐 Cramer's Rule Formula",
+      prompt: "Explain Cramer's rule step-by-step with determinants D, Dx, Dy, and the textbook worked example.",
+      doc: "chapter_01_Linear_Equations_in_Two_Variables.pdf",
+    },
+    {
+      title: "🌿 Field Visit & Biodiversity",
+      prompt: "What is Chapter 1 about and what is the comparison between India and Brazil's flora and fauna?",
+      doc: "chapter_01_Field_Visit.pdf",
+    },
+    {
+      title: "🏛️ Western Historiography",
+      prompt: "What are the core stages of historical research and notable scholars covered in Chapter 1?",
+      doc: "chapter_01_Historiography_Development_in_the_West.pdf",
+    },
+    {
+      title: "🔒 Incident Response SLOs",
+      prompt: "What are the response time SLOs and procedures for Sev-1 incidents in the engineering handbook?",
+      doc: "engineering_handbook.md",
+    },
+  ];
+
   return (
-    <div className="min-h-screen bg-[#090d16] text-zinc-100 flex flex-col font-sans">
-      {/* Top Header */}
-      <header className="border-b border-zinc-800/80 bg-[#0c101c]/90 backdrop-blur sticky top-0 z-50">
-        <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
+    <div className="min-h-screen bg-[#0B0C0E] text-[#EDEDED] flex flex-col font-sans">
+      {/* Top Navigation Bar */}
+      <header className="border-b border-white/[0.07] bg-[#0E0F12]/95 backdrop-blur sticky top-0 z-50">
+        <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
-              <Sparkles className="w-5 h-5 text-white" />
+            {/* Minimalist Engineered Logo */}
+            <div className="w-7 h-7 rounded-lg bg-[#16181D] border border-white/10 flex items-center justify-center text-white shadow-sm">
+              <Database className="w-3.5 h-3.5 text-zinc-200" />
             </div>
-            <div>
-              <div className="flex items-center space-x-2">
-                <span className="font-bold text-base tracking-tight text-white">
-                  HireKiwi CRAG Assistant
-                </span>
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 font-mono">
-                  Live Conversational RAG
-                </span>
-              </div>
-              <p className="text-[11px] text-zinc-400">
-                Corrective RAG &bull; Hybrid BM25+Dense Reranking &bull; Zero Hallucination
-              </p>
+            <div className="flex items-center space-x-2">
+              <span className="font-semibold text-sm tracking-tight text-[#EDEDED]">
+                HireKiwi RAG
+              </span>
+              <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/[0.04] text-zinc-400 border border-white/[0.08] font-mono">
+                CRAG v2.0
+              </span>
             </div>
           </div>
 
           {/* System Status Indicators */}
-          <div className="flex items-center space-x-3 text-xs">
-            <div className="hidden sm:flex items-center space-x-2 bg-zinc-900/80 px-2.5 py-1 rounded-lg border border-zinc-800 text-zinc-300">
+          <div className="flex items-center space-x-2.5 text-xs">
+            <div className="flex items-center space-x-2 bg-[#14161B] px-2.5 py-1 rounded-md border border-white/[0.08] text-zinc-300">
               <span
-                className={`w-2 h-2 rounded-full ${
+                className={`w-1.5 h-1.5 rounded-full ${
                   health.status === 'healthy'
-                    ? 'bg-emerald-400 animate-pulse'
-                    : 'bg-amber-400'
+                    ? 'bg-emerald-400'
+                    : 'bg-amber-400 animate-pulse'
                 }`}
               />
-              <span className="font-mono text-[11px]">
-                {health.status === 'healthy' ? 'FastAPI Online' : 'Connecting...'}
+              <span className="font-mono text-[11px] text-zinc-300">
+                {health.status === 'healthy' ? 'FastAPI Live' : 'Connecting...'}
               </span>
             </div>
 
-            <div className="hidden md:flex items-center space-x-1.5 bg-zinc-900/80 px-2.5 py-1 rounded-lg border border-zinc-800 text-zinc-300">
-              <Cpu className="w-3.5 h-3.5 text-indigo-400" />
-              <span className="text-[11px]">LLM:</span>
-              <span className="font-semibold text-indigo-300 font-mono text-[11px]">
-                Groq (gpt-oss-120b)
-              </span>
+            <div className="hidden sm:flex items-center space-x-1.5 bg-[#14161B] px-2.5 py-1 rounded-md border border-white/[0.08] text-zinc-400 font-mono text-[11px]">
+              <Cpu className="w-3 h-3 text-zinc-400" />
+              <span>Groq 120B</span>
             </div>
 
-            <div className="flex items-center space-x-1.5 bg-zinc-900/80 px-2.5 py-1 rounded-lg border border-zinc-800 text-zinc-300">
-              <Database className="w-3.5 h-3.5 text-violet-400" />
-              <span className="text-[11px]">ChromaDB:</span>
-              <span className="font-semibold text-violet-300 font-mono text-[11px]">
-                {health.vector_store_chunks || 101} chunks
-              </span>
+            <div className="hidden md:flex items-center space-x-1.5 bg-[#14161B] px-2.5 py-1 rounded-md border border-white/[0.08] text-zinc-400 font-mono text-[11px]">
+              <span>{health.vector_store_chunks || 101} Chunks</span>
             </div>
+
+            <button
+              onClick={handleClearChat}
+              className="p-1.5 text-zinc-400 hover:text-zinc-200 hover:bg-[#1A1D24] rounded-md transition-colors"
+              title="Clear Conversation"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
           </div>
         </div>
       </header>
 
-      {/* Document Selector Header Bar */}
-      <section className="border-b border-zinc-800/80 bg-[#0e1322]/80 backdrop-blur px-4 py-3">
+      {/* Target Document Selector Strip */}
+      <section className="border-b border-white/[0.07] bg-[#0E0F12] px-4 py-2.5">
         <div className="max-w-6xl mx-auto space-y-2">
           {/* Notification Banner */}
           {notification && (
             <div
               className={`p-2.5 rounded-lg text-xs flex items-center justify-between transition-all ${
                 notification.type === 'error'
-                  ? 'bg-rose-500/10 border border-rose-500/30 text-rose-300'
-                  : 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-300'
+                  ? 'bg-rose-500/10 border border-rose-500/20 text-rose-300'
+                  : 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-300'
               }`}
             >
               <div className="flex items-center space-x-2">
                 {notification.type === 'error' ? (
-                  <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
+                  <AlertTriangle className="w-3.5 h-3.5 text-rose-400 shrink-0" />
                 ) : (
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
                 )}
                 <span>{notification.message}</span>
               </div>
@@ -509,15 +523,16 @@ export default function App() {
 
           <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
             <div className="flex items-center space-x-2 text-zinc-300 font-medium">
-              <Filter className="w-3.5 h-3.5 text-indigo-400" />
-              <span>Target Documents to Search:</span>
-              <span className="text-[11px] text-zinc-400 font-mono">
-                ({selectedDocs.length === 0 ? 'All Documents' : `${selectedDocs.length} Selected`} &bull; {activeChunkCount} chunks)
+              <Filter className="w-3.5 h-3.5 text-zinc-400" />
+              <span className="text-xs uppercase tracking-wider text-zinc-400 font-semibold text-[11px]">
+                Knowledge Scope
+              </span>
+              <span className="text-[11px] text-zinc-500 font-mono">
+                ({selectedDocs.length === 0 ? 'All Documents' : `${selectedDocs.length} Active`} &bull; {activeChunkCount} chunks)
               </span>
             </div>
 
             <div className="flex items-center space-x-2">
-              {/* Hidden file input */}
               <input
                 type="file"
                 ref={fileInputRef}
@@ -526,22 +541,22 @@ export default function App() {
                 className="hidden"
               />
 
-              {/* Add / Upload Document Button */}
+              {/* Modern Minimalist Add Document Button */}
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={uploading}
-                className="px-2.5 py-1 rounded-md text-[11px] font-medium bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white shadow-sm flex items-center space-x-1.5 transition-all disabled:opacity-50"
+                className="px-2.5 py-1 rounded-md text-[11px] font-medium bg-[#18191E] hover:bg-[#202227] text-zinc-200 border border-white/[0.12] flex items-center space-x-1.5 transition-all disabled:opacity-50 shadow-sm"
                 title="Upload a PDF, Markdown, or TXT document"
               >
                 {uploading ? (
                   <>
-                    <RefreshCw className="w-3 h-3 animate-spin" />
+                    <RefreshCw className="w-3 h-3 animate-spin text-zinc-400" />
                     <span>Indexing File...</span>
                   </>
                 ) : (
                   <>
-                    <Plus className="w-3.5 h-3.5" />
+                    <Plus className="w-3 h-3 text-zinc-400" />
                     <span>Add Document</span>
                   </>
                 )}
@@ -552,8 +567,8 @@ export default function App() {
                 onClick={handleSelectAllDocs}
                 className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-all ${
                   selectedDocs.length === 0
-                    ? 'bg-zinc-700 text-white shadow-sm'
-                    : 'bg-zinc-800 text-zinc-400 hover:text-zinc-200 border border-zinc-700'
+                    ? 'bg-zinc-800 text-white border border-white/10'
+                    : 'bg-[#14161B] text-zinc-400 hover:text-zinc-200 border border-white/[0.06]'
                 }`}
               >
                 Select All
@@ -562,7 +577,7 @@ export default function App() {
           </div>
 
           {/* Document Selection Pills */}
-          <div className="flex flex-wrap gap-2 pt-1">
+          <div className="flex flex-wrap gap-1.5 pt-0.5">
             {availableDocs.map((doc, idx) => {
               const isSelected = selectedDocs.includes(doc.name);
               const isAll = selectedDocs.length === 0;
@@ -572,41 +587,42 @@ export default function App() {
                 <div
                   key={idx}
                   onClick={() => handleToggleDoc(doc.name)}
-                  className={`group cursor-pointer px-3 py-1.5 rounded-lg text-xs font-medium border flex items-center space-x-2 transition-all ${
+                  className={`group cursor-pointer px-2.5 py-1.5 rounded-lg text-xs font-medium border flex items-center space-x-2 transition-all ${
                     active
                       ? isSelected
-                        ? 'bg-indigo-600/20 border-indigo-500 text-indigo-200'
-                        : 'bg-zinc-800/90 border-zinc-700 text-zinc-200'
-                      : 'bg-zinc-900/40 border-zinc-800/80 text-zinc-500 hover:text-zinc-400'
+                        ? 'bg-[#181A22] border-white/20 text-white shadow-sm'
+                        : 'bg-[#14161B] border-white/[0.08] text-zinc-300'
+                      : 'bg-[#0E0F12]/60 border-white/[0.04] text-zinc-500 hover:text-zinc-400'
                   }`}
                 >
                   <input
                     type="checkbox"
                     checked={active}
                     readOnly
-                    className="w-3 h-3 rounded bg-zinc-900 border-zinc-700 text-indigo-600 pointer-events-none"
+                    className="w-3 h-3 rounded bg-zinc-900 border-zinc-700 text-indigo-500 pointer-events-none"
                   />
                   {doc.type === 'pdf' ? (
-                    <BookOpen className="w-3.5 h-3.5 text-rose-400 shrink-0" />
+                    <BookOpen className="w-3 h-3 text-rose-400 shrink-0" />
                   ) : (
-                    <FileText className="w-3.5 h-3.5 text-sky-400 shrink-0" />
+                    <FileText className="w-3 h-3 text-sky-400 shrink-0" />
                   )}
-                  <span className="truncate max-w-[200px]" title={doc.name}>{doc.name}</span>
+                  <span className="truncate max-w-[190px] text-[12px]" title={doc.name}>
+                    {doc.name}
+                  </span>
                   {doc.pages && (
-                    <span className="text-[10px] text-zinc-400 font-mono shrink-0">
+                    <span className="text-[10px] text-zinc-500 font-mono shrink-0">
                       p.{doc.pages}
                     </span>
                   )}
-                  <span className="text-[10px] px-1.5 py-0.2 rounded bg-zinc-800/80 text-zinc-400 font-mono shrink-0">
+                  <span className="text-[10px] px-1 py-0.2 rounded bg-zinc-800/80 text-zinc-400 font-mono shrink-0">
                     {doc.chunks} ch
                   </span>
 
-                  {/* Remove / Delete icon */}
                   <button
                     type="button"
                     onClick={(e) => handleDeleteDoc(doc.name, e)}
                     className="opacity-0 group-hover:opacity-100 p-0.5 text-zinc-500 hover:text-rose-400 transition-opacity ml-0.5"
-                    title={`Delete ${doc.name} from index`}
+                    title={`Delete ${doc.name}`}
                   >
                     <Trash2 className="w-3 h-3" />
                   </button>
@@ -617,9 +633,9 @@ export default function App() {
         </div>
       </section>
 
-      {/* Main Chat Container */}
+      {/* Main Chat Interface */}
       <main className="max-w-6xl mx-auto px-4 py-4 flex-1 w-full flex flex-col justify-between overflow-hidden">
-        {/* Messages Stream */}
+        {/* Messages Feed */}
         <div className="flex-1 overflow-y-auto space-y-4 pr-1 pb-4">
           {messages.map((msg) => {
             const isUser = msg.role === 'user';
@@ -634,35 +650,35 @@ export default function App() {
                 }`}
               >
                 {!isUser && (
-                  <div className="w-8 h-8 rounded-lg bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center shrink-0 mt-0.5 text-indigo-400">
-                    <Bot className="w-4 h-4" />
+                  <div className="w-7 h-7 rounded-lg bg-[#16181D] border border-white/10 flex items-center justify-center shrink-0 mt-0.5 text-zinc-300 shadow-sm">
+                    <Bot className="w-3.5 h-3.5" />
                   </div>
                 )}
 
                 <div
                   className={`rounded-2xl p-4 space-y-3 transition-all ${
                     isUser
-                      ? 'max-w-xl bg-indigo-600/15 border border-indigo-500/30 text-zinc-100 rounded-tr-none'
-                      : 'w-full max-w-3xl lg:max-w-4xl glass-panel rounded-tl-none border border-zinc-800/80 text-zinc-200'
+                      ? 'max-w-xl bg-[#1A1C23] border border-white/10 text-white rounded-tr-sm'
+                      : 'w-full max-w-3xl lg:max-w-4xl bg-[#111317] border border-white/[0.08] rounded-tl-sm text-zinc-200 shadow-lg'
                   }`}
                 >
                   {/* Message Header */}
                   <div className="flex flex-col space-y-1.5 border-b border-white/[0.06] pb-2">
                     <div className="flex items-center justify-between text-[11px] text-zinc-400">
                       <span className="font-semibold text-zinc-300">
-                        {isUser ? 'You' : 'CRAG Assistant (Groq 120B)'}
+                        {isUser ? 'You' : 'CRAG Knowledge Assistant'}
                       </span>
                       <div className="flex items-center space-x-2">
                         {msg.latency_ms && (
-                          <span className="font-mono text-zinc-400">
+                          <span className="font-mono text-zinc-500 text-[10px]">
                             {msg.latency_ms.toFixed(0)}ms
                           </span>
                         )}
-                        <span>{msg.timestamp}</span>
+                        <span className="text-[10px] text-zinc-500">{msg.timestamp}</span>
                         {!isUser && (
                           <button
                             onClick={() => handleCopy(msg.id, msg.content)}
-                            className="hover:text-zinc-200 p-1 rounded transition-colors"
+                            className="hover:text-zinc-200 p-1 rounded transition-colors text-zinc-400"
                             title="Copy Answer"
                           >
                             {copiedId === msg.id ? (
@@ -679,12 +695,14 @@ export default function App() {
                     {!isUser && msg.confidence !== undefined && (
                       <div className="flex flex-wrap items-center gap-2 pt-0.5">
                         <span
-                          className={`px-2 py-0.5 rounded-md text-[10px] font-mono border flex items-center space-x-1.5 ${
+                          className={`px-2 py-0.5 rounded text-[10px] font-mono border flex items-center space-x-1.5 ${
                             msg.confidence >= 0.85
-                              ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
+                              ? (msg.sources && msg.sources.length > 0
+                                  ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-300'
+                                  : 'bg-zinc-800/80 border-white/10 text-zinc-300')
                               : msg.confidence > 0.0
-                              ? 'bg-amber-500/10 border-amber-500/30 text-amber-300'
-                              : 'bg-rose-500/10 border-rose-500/30 text-rose-300'
+                              ? 'bg-amber-500/10 border-amber-500/20 text-amber-300'
+                              : 'bg-rose-500/10 border-rose-500/20 text-rose-300'
                           }`}
                         >
                           <ShieldCheck className="w-3 h-3 shrink-0" />
@@ -696,11 +714,11 @@ export default function App() {
                                   : 'Direct Conversational Interaction')
                               : msg.confidence > 0.0
                               ? 'Partial Evidence'
-                              : 'Missing from Corpus'}
+                              : 'Missing from Corpus (Zero Hallucination)'}
                           </span>
                         </span>
                         {msg.filtered_docs && (
-                          <span className="text-[10px] text-zinc-400 font-mono">
+                          <span className="text-[10px] text-zinc-500 font-mono">
                             Scope: {msg.filtered_docs.join(', ')}
                           </span>
                         )}
@@ -711,10 +729,9 @@ export default function App() {
                   {/* Message Content rendered as rich formatted Markdown */}
                   <MarkdownMessage content={msg.content} isUser={isUser} />
 
-                  {/* Evidence & Reranking Breakdown for Assistant Replies */}
+                  {/* Evidence Drawer for Assistant Replies */}
                   {!isUser && msg.sources && msg.sources.length > 0 && (
                     <div className="pt-2 border-t border-white/[0.06] space-y-2">
-                      {/* Toggle Evidence Drawer */}
                       <button
                         onClick={() =>
                           setExpandedSources((prev) => ({
@@ -722,11 +739,11 @@ export default function App() {
                             [msg.id]: !sourcesExpanded,
                           }))
                         }
-                        className="text-[11px] font-medium text-indigo-400 hover:text-indigo-300 flex items-center space-x-1.5 transition-colors"
+                        className="text-[11px] font-medium text-zinc-400 hover:text-zinc-200 flex items-center space-x-1.5 transition-colors"
                       >
                         <Layers className="w-3.5 h-3.5" />
                         <span>
-                          {sourcesExpanded ? 'Hide' : 'Show'} Evidence & Hybrid Reranking Scores ({msg.sources.length} chunks)
+                          {sourcesExpanded ? 'Hide' : 'Show'} Evidence Chunks &amp; Hybrid Reranking Scores ({msg.sources.length} chunks retained)
                         </span>
                         {sourcesExpanded ? (
                           <ChevronUp className="w-3 h-3" />
@@ -740,28 +757,28 @@ export default function App() {
                           {msg.sources.map((chunk, idx) => (
                             <div
                               key={idx}
-                              className="bg-zinc-950/70 border border-zinc-800 rounded-lg p-2.5 space-y-1.5 text-[11px]"
+                              className="bg-[#0B0C0E] border border-white/[0.08] rounded-lg p-2.5 space-y-1.5 text-[11px]"
                             >
-                              <div className="flex flex-wrap items-center justify-between gap-1 border-b border-zinc-800 pb-1">
+                              <div className="flex flex-wrap items-center justify-between gap-1 border-b border-white/[0.06] pb-1">
                                 <div className="flex items-center space-x-2">
-                                  <span className="font-mono text-zinc-400">#{idx + 1}</span>
-                                  <span className="font-semibold text-zinc-200">{chunk.source}</span>
+                                  <span className="font-mono text-zinc-500">#{idx + 1}</span>
+                                  <span className="font-medium text-zinc-200">{chunk.source}</span>
                                   {chunk.metadata?.page_number && (
-                                    <span className="px-1.5 py-0.2 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 font-mono">
+                                    <span className="px-1.5 py-0.2 rounded bg-zinc-800 text-zinc-300 border border-white/[0.06] font-mono text-[10px]">
                                       Page {chunk.metadata.page_number}
                                     </span>
                                   )}
                                 </div>
                                 <div className="flex items-center space-x-2 font-mono text-[10px]">
                                   {chunk.metadata?.rrf_score && (
-                                    <span className="text-violet-300">
+                                    <span className="text-zinc-400">
                                       RRF: {chunk.metadata.rrf_score}
                                     </span>
                                   )}
                                   <span
                                     className={`px-1.5 py-0.2 rounded ${
                                       chunk.relevance === 'relevant'
-                                        ? 'bg-emerald-500/10 text-emerald-400'
+                                        ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
                                         : 'bg-zinc-800 text-zinc-400'
                                     }`}
                                   >
@@ -769,7 +786,7 @@ export default function App() {
                                   </span>
                                 </div>
                               </div>
-                              <p className="text-zinc-300 whitespace-pre-wrap font-mono line-clamp-4 leading-relaxed">
+                              <p className="text-zinc-400 whitespace-pre-wrap font-mono line-clamp-4 leading-relaxed text-[11px]">
                                 {chunk.content}
                               </p>
                             </div>
@@ -805,10 +822,10 @@ export default function App() {
                           {msg.steps.map((st, i) => (
                             <div
                               key={i}
-                              className="bg-zinc-950/70 border border-zinc-800 rounded p-2 text-[10px] font-mono text-zinc-400 space-y-1"
+                              className="bg-[#0B0C0E] border border-white/[0.08] rounded p-2 text-[10px] font-mono text-zinc-400 space-y-1"
                             >
                               <div className="flex items-center justify-between text-zinc-300">
-                                <span className="font-semibold text-indigo-400">
+                                <span className="font-semibold text-zinc-200">
                                   {st.step_name === 'understand_query'
                                     ? '1. LLM Query Analyzer & Search Planner'
                                     : st.step_name === 'conversational_reply'
@@ -830,7 +847,7 @@ export default function App() {
                                 <span className="text-zinc-500">{st.duration_ms.toFixed(0)}ms</span>
                               </div>
                               {st.details && (
-                                <div className="text-zinc-400 text-[10px] pl-2 border-l border-zinc-800 space-y-0.5">
+                                <div className="text-zinc-400 text-[10px] pl-2 border-l border-white/[0.08] space-y-0.5">
                                   {st.step_name === 'understand_query' && (
                                     <>
                                       <div>Action: <span className="text-zinc-200">{st.details.action || st.details.intent}</span></div>
@@ -838,7 +855,7 @@ export default function App() {
                                         <div>Reasoning: <span className="text-zinc-300">{st.details.search_reasoning || st.details.explanation}</span></div>
                                       )}
                                       {st.details.search_queries && st.details.search_queries.length > 0 && (
-                                        <div>Planned Queries: <span className="text-violet-300">{JSON.stringify(st.details.search_queries)}</span></div>
+                                        <div>Planned Queries: <span className="text-zinc-300">{JSON.stringify(st.details.search_queries)}</span></div>
                                       )}
                                     </>
                                   )}
@@ -868,23 +885,59 @@ export default function App() {
                 </div>
 
                 {isUser && (
-                  <div className="w-8 h-8 rounded-lg bg-zinc-800 border border-zinc-700 flex items-center justify-center shrink-0 mt-0.5 text-zinc-300">
-                    <User className="w-4 h-4" />
+                  <div className="w-7 h-7 rounded-lg bg-[#1A1C23] border border-white/10 flex items-center justify-center shrink-0 mt-0.5 text-zinc-300 shadow-sm">
+                    <User className="w-3.5 h-3.5" />
                   </div>
                 )}
               </div>
             );
           })}
 
-          {/* Typing / Thinking Indicator */}
+          {/* Quick Suggested Prompts when starting fresh */}
+          {messages.length <= 1 && (
+            <div className="pt-2 pb-3">
+              <p className="text-[11px] uppercase tracking-wider text-zinc-500 font-semibold mb-2">
+                Suggested Test Inquiries
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {quickPrompts.map((item, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => {
+                      setSelectedDocs([item.doc]);
+                      executeQuery(item.prompt, [item.doc]);
+                    }}
+                    className="p-3 rounded-xl bg-[#121316] hover:bg-[#18191E] border border-white/[0.08] hover:border-white/20 text-left transition-all group"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-semibold text-xs text-white group-hover:text-[#5E6AD2] transition-colors">
+                        {item.title}
+                      </span>
+                      <ArrowRight className="w-3 h-3 text-zinc-500 group-hover:text-white transition-colors" />
+                    </div>
+                    <p className="text-[11px] text-zinc-400 line-clamp-2 mt-1 leading-snug">
+                      {item.prompt}
+                    </p>
+                    <div className="mt-2 flex items-center gap-1.5 text-[10px] text-zinc-500 font-mono">
+                      <BookOpen className="w-2.5 h-2.5 text-zinc-400" />
+                      <span>{item.doc}</span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Thinking / Pipeline Running State */}
           {loading && (
             <div className="flex items-start space-x-3">
-              <div className="w-8 h-8 rounded-lg bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center shrink-0 mt-0.5 text-indigo-400">
-                <Bot className="w-4 h-4 animate-spin" />
+              <div className="w-7 h-7 rounded-lg bg-[#16181D] border border-white/10 flex items-center justify-center shrink-0 mt-0.5 text-zinc-300 shadow-sm">
+                <Bot className="w-3.5 h-3.5 animate-spin" />
               </div>
-              <div className="glass-panel rounded-2xl rounded-tl-none p-3.5 border border-zinc-800 text-xs text-zinc-300 flex items-center space-x-2">
-                <RefreshCw className="w-3.5 h-3.5 text-indigo-400 animate-spin" />
-                <span>Searching selected documents &amp; reranking candidates with BM25...</span>
+              <div className="bg-[#111317] rounded-2xl rounded-tl-sm p-3 border border-white/[0.08] text-xs text-zinc-300 flex items-center space-x-2">
+                <RefreshCw className="w-3.5 h-3.5 text-zinc-400 animate-spin" />
+                <span>Executing CRAG pipeline: Planning queries, retrieving chunks &amp; reranking with BM25...</span>
               </div>
             </div>
           )}
@@ -892,63 +945,66 @@ export default function App() {
           <div ref={chatEndRef} />
         </div>
 
-        {/* Input Bar & Controls */}
-        <div className="pt-2 border-t border-zinc-800/80 space-y-2 bg-[#090d16]">
-          <form onSubmit={handleSendMessage} className="relative flex items-center">
-            <input
-              type="text"
-              value={inputQuery}
-              onChange={(e) => setInputQuery(e.target.value)}
-              placeholder="Ask any question about the selected document(s)..."
-              disabled={loading}
-              className="w-full pl-4 pr-24 py-3.5 bg-zinc-900/90 border border-zinc-700/80 rounded-xl text-zinc-100 placeholder-zinc-500 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all font-normal"
-            />
-            <button
-              type="submit"
-              disabled={loading || !inputQuery.trim()}
-              className="absolute right-2 px-3.5 py-2 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white rounded-lg text-xs font-semibold flex items-center space-x-1.5 transition-all shadow-md shadow-indigo-600/20 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <span>Send</span>
-              <Send className="w-3.5 h-3.5" />
-            </button>
-          </form>
-
-          {/* Quick Chat Options */}
-          <div className="flex flex-wrap items-center justify-between gap-3 text-[11px] text-zinc-400 px-1">
-            <div className="flex items-center space-x-4">
-              <label className="flex items-center space-x-1.5 cursor-pointer text-zinc-400 hover:text-zinc-200">
-                <input
-                  type="checkbox"
-                  checked={enableWebSearch}
-                  onChange={(e) => setEnableWebSearch(e.target.checked)}
-                  className="rounded bg-zinc-900 border-zinc-700 text-indigo-600 focus:ring-indigo-500 w-3 h-3"
-                />
-                <span>Web Search Fallback</span>
-              </label>
-
-              <div className="flex items-center space-x-1.5">
-                <span>Top-K Chunks:</span>
-                <select
-                  value={topK}
-                  onChange={(e) => setTopK(Number(e.target.value))}
-                  className="bg-zinc-900 border border-zinc-800 rounded px-1.5 py-0.5 text-zinc-200 font-mono text-[11px] focus:outline-none"
-                >
-                  <option value={2}>2</option>
-                  <option value={4}>4 (Default)</option>
-                  <option value={6}>6</option>
-                  <option value={8}>8</option>
-                </select>
-              </div>
+        {/* Command Bar Input Box (Raycast / Linear Style) */}
+        <div className="pt-2 border-t border-white/[0.07] space-y-2 bg-[#0B0C0E]">
+          <form
+            onSubmit={handleSendMessage}
+            className="rounded-xl border border-white/[0.12] bg-[#121316] focus-within:border-white/25 focus-within:ring-1 focus-within:ring-white/10 transition-all p-2 shadow-xl"
+          >
+            <div className="relative flex items-center">
+              <input
+                type="text"
+                value={inputQuery}
+                onChange={(e) => setInputQuery(e.target.value)}
+                placeholder="Ask any question about the selected document(s)..."
+                disabled={loading}
+                className="w-full bg-transparent pl-2.5 pr-20 py-1.5 text-zinc-100 placeholder-zinc-500 text-xs sm:text-sm focus:outline-none font-normal"
+              />
+              <button
+                type="submit"
+                disabled={loading || !inputQuery.trim()}
+                className="absolute right-1 px-3 py-1.5 bg-white text-black hover:bg-zinc-200 rounded-lg text-xs font-semibold flex items-center space-x-1.5 transition-all shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <span>Send</span>
+                <CornerDownLeft className="w-3 h-3" />
+              </button>
             </div>
 
-            <button
-              onClick={handleClearChat}
-              className="text-zinc-500 hover:text-zinc-300 flex items-center space-x-1 transition-colors"
-            >
-              <Trash2 className="w-3 h-3" />
-              <span>Clear Chat</span>
-            </button>
-          </div>
+            {/* Bottom Toolbar inside Input Card */}
+            <div className="flex flex-wrap items-center justify-between gap-2 pt-2 px-1 border-t border-white/[0.04] text-[11px] text-zinc-400">
+              <div className="flex items-center space-x-3">
+                <label className="flex items-center space-x-1.5 cursor-pointer text-zinc-400 hover:text-zinc-200 transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={enableWebSearch}
+                    onChange={(e) => setEnableWebSearch(e.target.checked)}
+                    className="rounded bg-zinc-900 border-zinc-700 text-[#5E6AD2] w-3 h-3"
+                  />
+                  <span>Web Fallback</span>
+                </label>
+
+                <div className="flex items-center space-x-1.5">
+                  <span className="text-zinc-500">Top-K:</span>
+                  <select
+                    value={topK}
+                    onChange={(e) => setTopK(Number(e.target.value))}
+                    className="bg-[#18191E] border border-white/[0.08] rounded px-1.5 py-0.5 text-zinc-200 font-mono text-[11px] focus:outline-none"
+                  >
+                    <option value={2}>2</option>
+                    <option value={4}>4</option>
+                    <option value={6}>6</option>
+                    <option value={8}>8</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="text-[10px] text-zinc-500 font-mono">
+                {selectedDocs.length === 0
+                  ? 'Searching All Documents'
+                  : `Searching: ${selectedDocs.join(', ')}`}
+              </div>
+            </div>
+          </form>
         </div>
       </main>
     </div>
