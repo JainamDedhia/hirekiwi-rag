@@ -56,20 +56,176 @@ class LLMGateway:
             logger.error("Failed to initialize LLM provider: %s. Using offline fallback.", e)
             self._llm = None
 
+    def understand_user_query(
+        self,
+        query: str,
+        selected_documents: Optional[List[str]] = None,
+        chat_history: Optional[List[Dict[str, str]]] = None,
+    ) -> Dict[str, Any]:
+        """Analyzes user intent, resolves coreferences, and generates targeted search queries.
+
+        Returns:
+            {
+                "intent": "document_overview" | "specific_query" | "external_search",
+                "search_queries": [str],
+                "explanation": str,
+                "fetch_introductory_chunks": bool,
+            }
+        """
+        is_overview_phrase = any(
+            p in query.lower()
+            for p in [
+                "what is the document about",
+                "what is this document about",
+                "what is this pdf about",
+                "what is the pdf about",
+                "what is the chapter about",
+                "what is this chapter about",
+                "tell me about this document",
+                "tell me about this pdf",
+                "summary of",
+                "summarize",
+                "overview of",
+                "what does this cover",
+                "what does this talk about",
+                "what are the contents",
+                "what is in this document",
+                "what is in this pdf",
+                "explain this document",
+                "about the document",
+            ]
+        )
+
+        if self._llm:
+            try:
+                from langchain_core.messages import HumanMessage, SystemMessage
+
+                doc_context_str = ""
+                if selected_documents:
+                    doc_context_str = f"Selected Document(s): {', '.join(selected_documents)}\n"
+
+                history_str = ""
+                if chat_history and len(chat_history) > 0:
+                    recent = [
+                        f"{turn.get('role', 'user')}: {turn.get('content', '')}"
+                        for turn in chat_history[-3:]
+                    ]
+                    history_str = "Conversation Context:\n" + "\n".join(recent) + "\n"
+
+                prompt = (
+                    "You are an expert AI Query Analyzer and Search Planner for a Corrective RAG system.\n"
+                    "Analyze the user's question, conversation context, and selected documents.\n\n"
+                    "TASKS:\n"
+                    "1. Classify intent into one of:\n"
+                    "   - 'document_overview': The user wants a summary, high-level overview, topic list, or wants to know what the document/chapter is about.\n"
+                    "   - 'specific_query': The user is asking a specific factual, procedural, mathematical, or technical question.\n"
+                    "   - 'external_search': The user is asking for real-time external info (e.g. current weather, stock prices, external news).\n"
+                    "2. Generate 1 to 3 targeted search query strings optimized for semantic vector retrieval and BM25 search.\n"
+                    "   If 'document_overview', generate queries that target the introduction, title, preface, objectives, and main topics of the selected document.\n"
+                    "   If conversational references exist (e.g., 'what else', 'why did they do that?'), resolve them into explicit search keywords.\n"
+                    "3. Set 'fetch_introductory_chunks': true if the user wants an overview/summary of the document, false otherwise.\n\n"
+                    "Output JSON strictly with keys:\n"
+                    "{\n"
+                    "  'intent': 'document_overview' | 'specific_query' | 'external_search',\n"
+                    "  'search_queries': ['query 1', 'query 2'],\n"
+                    "  'explanation': 'Brief 1-sentence rationale',\n"
+                    "  'fetch_introductory_chunks': true/false\n"
+                    "}"
+                )
+
+                user_msg = f"{doc_context_str}{history_str}User Question: {query}\n\nJSON output:"
+                resp = self._llm.invoke(
+                    [
+                        SystemMessage(content=prompt),
+                        HumanMessage(content=user_msg),
+                    ]
+                )
+                raw_json = resp.content.strip()
+                json_match = re.search(r"\{.*\}", raw_json, re.DOTALL)
+                if json_match:
+                    data = json.loads(json_match.group(0))
+                    queries = data.get("search_queries", [])
+                    if not isinstance(queries, list) or len(queries) == 0:
+                        queries = [query]
+                    return {
+                        "intent": data.get(
+                            "intent",
+                            "document_overview" if is_overview_phrase else "specific_query",
+                        ),
+                        "search_queries": queries,
+                        "explanation": str(
+                            data.get("explanation", "Extracted intent and search keywords")
+                        ),
+                        "fetch_introductory_chunks": bool(
+                            data.get("fetch_introductory_chunks", is_overview_phrase)
+                        ),
+                    }
+            except Exception as e:
+                logger.warning("LLM query understanding error: %s. Using heuristic planner.", e)
+
+        # Robust Heuristic Fallback
+        if is_overview_phrase:
+            queries = [query]
+            if selected_documents:
+                for doc in selected_documents:
+                    clean = re.sub(
+                        r"^(chapter_\d+_|\.pdf|\.md|\.txt)", "", doc, flags=re.IGNORECASE
+                    ).replace("_", " ")
+                    queries.append(f"{clean} introduction overview preface objectives")
+            return {
+                "intent": "document_overview",
+                "search_queries": queries,
+                "explanation": "Identified high-level document overview / summary request",
+                "fetch_introductory_chunks": True,
+            }
+
+        return {
+            "intent": "specific_query",
+            "search_queries": [query],
+            "explanation": "Identified specific information retrieval query",
+            "fetch_introductory_chunks": False,
+        }
+
     def grade_document_relevance(
-        self, query: str, document_content: str, source: str = ""
+        self,
+        query: str,
+        document_content: str,
+        source: str = "",
+        is_overview_query: bool = False,
     ) -> Tuple[bool, str]:
         """Grades whether a document chunk is relevant to the user query.
 
         Returns (is_relevant: bool, reason: str).
         """
+        # If this is a document overview request, introductory/structural chunks of the selected doc are directly relevant
+        if is_overview_query:
+            c_low = document_content.lower()
+            overview_keywords = [
+                "preface",
+                "introduction",
+                "chapter",
+                "standard",
+                "class ten",
+                "class 10",
+                "welcome",
+                "textbook",
+                "study",
+                "geography",
+                "history",
+                "mathematics",
+                "equation",
+                "field visit",
+            ]
+            if any(k in c_low for k in overview_keywords) or len(document_content) > 100:
+                return True, "Chunk provides structural context or content for document overview."
+
         if self._llm:
             try:
                 from langchain_core.messages import HumanMessage, SystemMessage
 
                 system_prompt = (
                     "You are a strict evaluation grader assessing relevance of a retrieved document to a user query.\n"
-                    "Grade 'yes' if the document contains semantic keywords, principles, or factual information "
+                    "Grade 'yes' if the document contains semantic keywords, principles, facts, or introductory context "
                     "directly relevant to answering the query. Grade 'no' if it is off-topic.\n"
                     "Output JSON strictly with keys: 'relevant' (boolean: true/false) and 'reason' (string explaining evaluation)."
                 )
@@ -94,12 +250,21 @@ class LLMGateway:
                 logger.warning("LLM grading call failed (%s). Falling back to heuristic evaluator.", ex)
 
         # Robust Heuristic Grader (for mock mode and network fallbacks)
-        return self._heuristic_grade_relevance(query, document_content, source)
+        return self._heuristic_grade_relevance(
+            query, document_content, source, is_overview_query=is_overview_query
+        )
 
     def _heuristic_grade_relevance(
-        self, query: str, content: str, source: str = ""
+        self,
+        query: str,
+        content: str,
+        source: str = "",
+        is_overview_query: bool = False,
     ) -> Tuple[bool, str]:
         """Deterministic evaluation grader assessing term and semantic relevance."""
+        if is_overview_query:
+            return True, "Introductory and overview content matching document summary request."
+
         q_lower = query.lower()
         c_lower = content.lower()
 
@@ -272,12 +437,13 @@ class LLMGateway:
 
                 system_prompt = (
                     "You are a strict, production-grade AI Knowledge Assistant pair-programming with the user. "
-                    "Your primary goal is to answer the user's questions clearly, conversationally, and accurately, grounded entirely in the provided internal documents and web search results.\n\n"
+                    "Your primary goal is to answer the user's questions clearly, accurately, and thoroughly, grounded strictly in the provided internal documents and web search results.\n\n"
                     "CRITICAL GROUNDING AND CITATION RULES:\n"
-                    "1. Grounding: Answer strictly using facts stated in the provided context. Do NOT invent, assume, or extrapolate facts.\n"
-                    "2. Evidence: You MUST cite the source document name and page or section in square brackets for every statement (e.g. [chapter_01_Linear_Equations_in_Two_Variables.pdf | Page 12] or [engineering_handbook.md > On-Call Operations]).\n"
-                    "3. Direct Excerpts: Include exact or near-exact excerpts from the documents as evidence.\n"
-                    "4. Missing Information / Unanswerable Questions: If the documents do not contain enough information to answer the question, or if the question is off-topic/unanswerable from the provided material, you MUST state explicitly:\n"
+                    "1. Grounding: Answer strictly using facts and content stated in the provided context. Do NOT invent, assume, or extrapolate facts.\n"
+                    "2. Document Overviews & Summaries: If the user asks what the document is about, summarize the chapter/document, or asks about its scope, synthesize a clear, structured overview highlighting its title, objectives, major topics, and observations directly from the retrieved text.\n"
+                    "3. Evidence: You MUST cite the source document name and page number or section in square brackets for every fact or claim (e.g. [chapter_01_Field_Visit.pdf | Page 8] or [engineering_handbook.md > On-Call Operations]).\n"
+                    "4. Direct Excerpts: Include exact or near-exact excerpts from the documents as evidence to demonstrate trust.\n"
+                    "5. Missing Information / Unanswerable Questions: If the documents do not contain enough information to answer the question, or if the question is off-topic/unanswerable from the provided material, you MUST state explicitly:\n"
                     "'The requested information is unavailable in the provided documents.'\n"
                     "Do NOT attempt to guess or answer with unverified external knowledge unless external web results are explicitly provided in the context."
                 )

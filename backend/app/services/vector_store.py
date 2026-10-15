@@ -248,6 +248,51 @@ class VectorStoreService:
             logger.error("Error deleting chunks for '%s': %s", source_name, e)
             return 0
 
+    def get_introductory_chunks(
+        self, doc_sources: List[str], max_chunks_per_doc: int = 4
+    ) -> List[DocumentChunk]:
+        """Retrieves introductory chunks (earliest pages / chunk indices) for selected documents."""
+        intro_chunks: List[DocumentChunk] = []
+        if not doc_sources:
+            return intro_chunks
+
+        for src in doc_sources:
+            try:
+                res = self.collection.get(
+                    where={"source": src},
+                    include=["documents", "metadatas"],
+                )
+                ids = res.get("ids", [])
+                docs = res.get("documents", [])
+                metas = res.get("metadatas", [])
+
+                if not ids:
+                    continue
+
+                # Sort by page_number or chunk_index
+                zipped = list(zip(ids, docs, metas))
+                zipped.sort(
+                    key=lambda x: (
+                        x[2].get("page_number", 999) if x[2] else 999,
+                        x[2].get("chunk_index", 999) if x[2] else 999,
+                    )
+                )
+
+                for chunk_id, content, meta in zipped[:max_chunks_per_doc]:
+                    intro_chunks.append(
+                        DocumentChunk(
+                            id=chunk_id,
+                            content=content,
+                            source=src,
+                            metadata=meta or {},
+                            score=1.0,
+                        )
+                    )
+            except Exception as e:
+                logger.warning("Error fetching introductory chunks for '%s': %s", src, e)
+
+        return intro_chunks
+
     def clear_collection(self):
         """Clears all records in the collection."""
         try:
