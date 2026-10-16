@@ -1139,6 +1139,30 @@ export default function App() {
                 </p>
               </div>
 
+              {/* Mixed Content Browser Notice */}
+              {typeof window !== 'undefined' && window.location.protocol === 'https:' && tempApiUrl.trim().startsWith('http://') && (
+                <div className="p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-300 text-[11px] leading-relaxed">
+                  <strong>Browser Security Notice</strong>: Because Vercel is served over HTTPS, web browsers block direct <code className="font-mono">http://</code> calls. Leave this field blank to let Vercel's secure edge proxy route to EC2 without mixed-content errors!
+                </div>
+              )}
+
+              {/* 1-Click Vercel Proxy Activation */}
+              <button
+                type="button"
+                onClick={() => {
+                  setTempApiUrl('');
+                  setApiUrl('');
+                  localStorage.removeItem('hirekiwi_api_url');
+                  showToast('Enabled Vercel Edge Proxy to EC2', 'success');
+                  setShowSettingsModal(false);
+                  fetchDocsAndHealth('');
+                }}
+                className="w-full py-2 px-3 rounded-lg bg-[#5E6AD2]/20 hover:bg-[#5E6AD2]/30 border border-[#5E6AD2]/40 text-[#A5AEF8] text-xs font-medium flex items-center justify-center space-x-2 transition-all"
+              >
+                <CheckCircle2 className="w-3.5 h-3.5 text-[#5E6AD2]" />
+                <span>Use Vercel Secure Proxy (Recommended)</span>
+              </button>
+
               {testStatus && (
                 <div
                   className={`p-3 rounded-lg border text-xs flex items-start space-x-2.5 ${
@@ -1164,7 +1188,7 @@ export default function App() {
               <div className="bg-[#16181F] border border-white/[0.06] rounded-lg p-3 text-[11px] text-zinc-400 space-y-1.5">
                 <div className="flex items-center space-x-1.5 text-zinc-300 font-medium">
                   <Sparkles className="w-3.5 h-3.5 text-[#5E6AD2]" />
-                  <span>AWS EC2 Dedicated Server</span>
+                  <span>AWS EC2 Dedicated Server (65.2.37.22)</span>
                 </div>
                 <p className="leading-relaxed">
                   Your AWS EC2 server runs 24/7 with zero spin-down latency. The Vercel edge proxy securely forwards requests to your instance.
@@ -1179,6 +1203,18 @@ export default function App() {
                   setTestingConnection(true);
                   setTestStatus(null);
                   const target = tempApiUrl.trim().replace(/\/+$/, '');
+                  const isHttpsPage = typeof window !== 'undefined' && window.location.protocol === 'https:';
+                  const isDirectHttp = target.startsWith('http://');
+
+                  if (isHttpsPage && isDirectHttp) {
+                    setTestStatus({
+                      success: false,
+                      message: `Browsers block direct http:// calls from https:// Vercel (Mixed Content). Click "Use Vercel Secure Proxy" above to route safely!`,
+                    });
+                    setTestingConnection(false);
+                    return;
+                  }
+
                   const startTime = Date.now();
                   try {
                     const res = await fetch(`${target}/api/health`);
@@ -1192,7 +1228,7 @@ export default function App() {
                   } catch (err) {
                     setTestStatus({
                       success: false,
-                      message: `Failed to connect to ${target || 'local proxy'}: ${err.message}`,
+                      message: `Failed to connect to ${target || 'Vercel proxy'}: ${err.message}`,
                     });
                   } finally {
                     setTestingConnection(false);
@@ -1212,7 +1248,7 @@ export default function App() {
                       setTempApiUrl('');
                       setApiUrl('');
                       localStorage.removeItem('hirekiwi_api_url');
-                      showToast('Reset to local default proxy', 'success');
+                      showToast('Reset to Vercel proxy', 'success');
                       setShowSettingsModal(false);
                       fetchDocsAndHealth('');
                     }}
