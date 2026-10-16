@@ -546,13 +546,13 @@ export default function App() {
         </div>
       </header>
 
-      {/* Warning Strip when deployed without custom backend URL */}
-      {!apiUrl && typeof window !== 'undefined' && !['localhost', '127.0.0.1'].includes(window.location.hostname) && (
+      {/* Warning Strip when backend is offline or disconnected */}
+      {health.status !== 'healthy' && typeof window !== 'undefined' && (
         <div className="bg-[#5E6AD2]/15 border-b border-[#5E6AD2]/30 px-4 py-2 text-xs flex items-center justify-between">
           <div className="flex items-center space-x-2 text-zinc-200">
             <Globe className="w-4 h-4 text-[#A5AEF8] shrink-0" />
             <span>
-              <strong>Connect Render Backend</strong>: Set your Render service URL (e.g. <code className="text-[#A5AEF8] bg-black/40 px-1.5 py-0.5 rounded font-mono">https://hirekiwi-rag.onrender.com</code>) to enable questions.
+              <strong>Connecting to Backend</strong>: Connecting to AWS EC2 backend (<code className="text-[#A5AEF8] bg-black/40 px-1.5 py-0.5 rounded font-mono">http://65.2.37.22:8000</code>)...
             </span>
           </div>
           <button
@@ -564,7 +564,7 @@ export default function App() {
             }}
             className="px-2.5 py-1 rounded bg-[#5E6AD2] hover:bg-[#4E5AC0] text-white text-[11px] font-semibold transition-all shrink-0 ml-3 shadow-sm"
           >
-            Connect Backend
+            Configure
           </button>
         </div>
       )}
@@ -1125,17 +1125,17 @@ export default function App() {
             <div className="space-y-3 text-xs">
               <div>
                 <label className="block text-zinc-300 font-medium mb-1">
-                  Render Backend Service URL
+                  AWS EC2 / Backend Service URL
                 </label>
                 <input
                   type="url"
                   value={tempApiUrl}
                   onChange={(e) => setTempApiUrl(e.target.value)}
-                  placeholder="https://hirekiwi-rag.onrender.com"
+                  placeholder="http://65.2.37.22:8000"
                   className="w-full px-3 py-2 bg-[#0E0F12] border border-white/[0.12] rounded-lg text-white font-mono text-xs focus:outline-none focus:border-[#5E6AD2] transition-colors"
                 />
                 <p className="text-[11px] text-zinc-400 mt-1.5 leading-relaxed">
-                  Enter your deployed Render web service URL. Leave empty for local development reverse proxy.
+                  Enter your AWS EC2 instance URL (e.g. <code className="text-[#A5AEF8]">http://65.2.37.22:8000</code>). Leave blank to use the automatic Vercel Edge reverse proxy.
                 </p>
               </div>
 
@@ -1164,10 +1164,10 @@ export default function App() {
               <div className="bg-[#16181F] border border-white/[0.06] rounded-lg p-3 text-[11px] text-zinc-400 space-y-1.5">
                 <div className="flex items-center space-x-1.5 text-zinc-300 font-medium">
                   <Sparkles className="w-3.5 h-3.5 text-[#5E6AD2]" />
-                  <span>Render Free Tier Notice</span>
+                  <span>AWS EC2 Dedicated Server</span>
                 </div>
                 <p className="leading-relaxed">
-                  Render instances on the free plan spin down after 15 minutes of inactivity. When woken up, the initial request takes ~30–45 seconds.
+                  Your AWS EC2 server runs 24/7 with zero spin-down latency. The Vercel edge proxy securely forwards requests to your instance.
                 </p>
               </div>
             </div>
