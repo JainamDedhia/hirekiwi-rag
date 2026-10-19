@@ -30,6 +30,8 @@ import {
   Search,
   ExternalLink,
   CornerDownLeft,
+  Compass,
+  ArrowLeft,
 } from 'lucide-react';
 
 // Custom rich markdown message renderer
@@ -132,6 +134,102 @@ function MarkdownMessage({ content, isUser }) {
 }
 
 export default function App() {
+  const [showTour, setShowTour] = useState(false);
+  const [tourStep, setTourStep] = useState(0);
+
+  useEffect(() => {
+    try {
+      const tourSeen = localStorage.getItem('hirekiwi_tour_seen');
+      if (!tourSeen) {
+        const timer = setTimeout(() => {
+          setShowTour(true);
+        }, 800);
+        return () => clearTimeout(timer);
+      }
+    } catch (e) {
+      console.warn('Could not read tour state', e);
+    }
+  }, []);
+
+  const handleStartTour = () => {
+    setTourStep(0);
+    setShowTour(true);
+  };
+
+  const handleCloseTour = () => {
+    setShowTour(false);
+    try {
+      localStorage.setItem('hirekiwi_tour_seen', 'true');
+    } catch (e) {
+      // ignore
+    }
+  };
+
+  const tourSteps = [
+    {
+      badge: "Architecture & Foundation",
+      title: "Corrective RAG (CRAG) Assistant",
+      description:
+        "Welcome! This AI knowledge assistant answers queries from Standard-10 textbook PDFs and engineering policy handbooks using a cyclic LangGraph state machine with 100% zero-hallucination verification.",
+      bulletPoints: [
+        "Dedicated 24/7 AWS EC2 backend with persistent ChromaDB vector store",
+        "Sub-second Groq LPU inference using openai/gpt-oss-120b (131k context)",
+        "Zero cold starts, fully decoupled Vercel Edge architecture",
+      ],
+      icon: Sparkles,
+    },
+    {
+      badge: "Knowledge Boundaries",
+      title: "Dynamic Knowledge Scope",
+      description:
+        "Use the top scope bar to isolate questions to a single textbook (e.g. Mathematics, Geography, or History) or query across the entire multi-document corpus simultaneously.",
+      bulletPoints: [
+        "Click any document chip to toggle active knowledge scope",
+        "Total chunk counter dynamically adjusts based on active filters",
+        "Upload new PDFs, Markdown, or TXT files on the fly via the + Add Doc button",
+      ],
+      icon: Filter,
+    },
+    {
+      badge: "Factuality & Evidence",
+      title: "Strict Grounding & Page-Level Citations",
+      description:
+        "Every claim generated is anchored in verifiable text excerpts with exact document names and page numbers (e.g., [chapter_01_Linear_Equations...pdf | Page 21]).",
+      bulletPoints: [
+        "Zero Hallucination: Acknowledges missing information when queries are out-of-corpus",
+        "Trust Factor Badge: Displays 0% to 100% confidence grounded in evidence",
+        "Evaluation score: 100% pass rate on answerable and unanswerable benchmarks",
+      ],
+      icon: ShieldCheck,
+    },
+    {
+      badge: "Retrieval Innovation",
+      title: "Hybrid BM25 + Dense Reranking & Telemetry",
+      description:
+        "Retrieval fuses dense semantic embeddings with lexical keyword matching using Reciprocal Rank Fusion (RRF k=60) before LLM document grading.",
+      bulletPoints: [
+        "Click 'Show Evidence Chunks' on any response to inspect retrieved excerpts",
+        "View dense vector rank vs. BM25 keyword rank side-by-side",
+        "Real-time execution step telemetry (duration in ms for each graph node)",
+      ],
+      icon: Layers,
+    },
+    {
+      badge: "Self-Correction & Fallback",
+      title: "Adaptive Web Search & Quick Prompts",
+      description:
+        "When internal documents lack sufficient confidence, the pipeline can autonomously self-correct using DuckDuckGo web search.",
+      bulletPoints: [
+        "Toggle 'Web Fallback' on or off in the bottom command bar",
+        "Adjust Top-K chunk retrieval depth (2 to 8 chunks)",
+        "Click any pre-crafted prompt below to immediately test the system!",
+      ],
+      icon: Compass,
+      actionPrompt: "Explain Cramer's rule step-by-step with determinants D, Dx, Dy, and the textbook worked example.",
+      actionDoc: "chapter_01_Linear_Equations_in_Two_Variables.pdf",
+    },
+  ];
+
   const [availableDocs, setAvailableDocs] = useState([]);
   const [selectedDocs, setSelectedDocs] = useState([]);
   const [uploading, setUploading] = useState(false);
@@ -410,6 +508,22 @@ export default function App() {
     ]);
   };
 
+  const handleRunTourDemo = () => {
+    const currentStepData = tourSteps[tourStep];
+    handleCloseTour();
+    if (currentStepData?.actionPrompt) {
+      if (currentStepData.actionDoc) {
+        setSelectedDocs([currentStepData.actionDoc]);
+      }
+      setTimeout(() => {
+        executeQuery(
+          currentStepData.actionPrompt,
+          currentStepData.actionDoc ? [currentStepData.actionDoc] : null
+        );
+      }, 150);
+    }
+  };
+
   const activeChunkCount = availableDocs
     .filter((d) => selectedDocs.length === 0 || selectedDocs.includes(d.name))
     .reduce((sum, d) => sum + (d.chunks || 0), 0);
@@ -481,6 +595,16 @@ export default function App() {
             <div className="hidden md:flex items-center space-x-1.5 bg-[#14161B] px-2.5 py-1 rounded-md border border-white/[0.08] text-zinc-400 font-mono text-[11px]">
               <span>{health.vector_store_chunks || 101} Chunks</span>
             </div>
+
+            <button
+              type="button"
+              onClick={handleStartTour}
+              className="flex items-center space-x-1.5 px-2.5 py-1 rounded-md border border-[#5E6AD2]/40 hover:border-[#5E6AD2] bg-[#5E6AD2]/10 hover:bg-[#5E6AD2]/20 text-[#A5B4FC] hover:text-white transition-all text-[11px] font-medium shadow-sm"
+              title="Interactive Feature Tour"
+            >
+              <Compass className="w-3.5 h-3.5 text-[#818CF8]" />
+              <span className="hidden sm:inline">Tour</span>
+            </button>
 
             <button
               onClick={handleClearChat}
@@ -1009,6 +1133,128 @@ export default function App() {
           </form>
         </div>
       </main>
+
+      {/* Interactive Feature Tour Modal */}
+      {showTour && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+          <div className="relative w-full max-w-lg bg-[#111216] border border-white/[0.12] rounded-2xl shadow-2xl overflow-hidden p-6 text-zinc-100 space-y-5">
+            {/* Top Bar inside modal */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <span className="px-2.5 py-0.5 rounded-full bg-[#5E6AD2]/15 border border-[#5E6AD2]/30 text-[#A5B4FC] text-[11px] font-medium tracking-wide">
+                  {tourSteps[tourStep].badge}
+                </span>
+                <span className="text-zinc-500 text-[11px] font-mono">
+                  {tourStep + 1} of {tourSteps.length}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={handleCloseTour}
+                className="p-1 rounded-lg text-zinc-400 hover:text-white hover:bg-white/[0.06] transition-colors"
+                title="Close Tour"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Icon & Title */}
+            <div className="space-y-2">
+              <div className="flex items-center space-x-3">
+                <div className="w-9 h-9 rounded-xl bg-[#5E6AD2]/10 border border-[#5E6AD2]/20 flex items-center justify-center text-[#818CF8] shadow-sm">
+                  {React.createElement(tourSteps[tourStep].icon, { className: 'w-5 h-5' })}
+                </div>
+                <h3 className="text-base sm:text-lg font-bold text-white tracking-tight">
+                  {tourSteps[tourStep].title}
+                </h3>
+              </div>
+              <p className="text-xs sm:text-sm text-zinc-300 leading-relaxed pt-1">
+                {tourSteps[tourStep].description}
+              </p>
+            </div>
+
+            {/* Bullet Points */}
+            <div className="bg-[#16181D] border border-white/[0.06] rounded-xl p-3.5 space-y-2">
+              {tourSteps[tourStep].bulletPoints.map((pt, i) => (
+                <div key={i} className="flex items-start space-x-2.5 text-xs text-zinc-300">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 mt-0.5 shrink-0" />
+                  <span className="leading-snug">{pt}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Step Indicators & Action Controls */}
+            <div className="flex items-center justify-between pt-2 border-t border-white/[0.06]">
+              {/* Dots */}
+              <div className="flex items-center space-x-1.5">
+                {tourSteps.map((_, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => setTourStep(i)}
+                    className={`h-1.5 rounded-full transition-all ${
+                      i === tourStep ? 'w-5 bg-[#5E6AD2]' : 'w-1.5 bg-white/20 hover:bg-white/40'
+                    }`}
+                    title={`Jump to step ${i + 1}`}
+                  />
+                ))}
+              </div>
+
+              {/* Navigation buttons */}
+              <div className="flex items-center space-x-2">
+                {tourStep > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setTourStep((prev) => Math.max(prev - 1, 0))}
+                    className="flex items-center space-x-1 px-3 py-1.5 rounded-lg border border-white/[0.1] text-zinc-300 hover:text-white hover:bg-white/[0.05] text-xs font-medium transition-colors"
+                  >
+                    <ArrowLeft className="w-3 h-3" />
+                    <span>Back</span>
+                  </button>
+                )}
+
+                {tourStep < tourSteps.length - 1 ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={handleCloseTour}
+                      className="px-2.5 py-1.5 text-zinc-500 hover:text-zinc-300 text-xs transition-colors"
+                    >
+                      Skip
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setTourStep((prev) => Math.min(prev + 1, tourSteps.length - 1))}
+                      className="flex items-center space-x-1.5 px-3.5 py-1.5 rounded-lg bg-white text-black hover:bg-zinc-200 text-xs font-semibold transition-all shadow-sm"
+                    >
+                      <span>Next</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      onClick={handleCloseTour}
+                      className="px-3 py-1.5 rounded-lg border border-white/[0.1] text-zinc-300 hover:text-white hover:bg-white/[0.05] text-xs transition-colors"
+                    >
+                      Dismiss
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleRunTourDemo}
+                      className="flex items-center space-x-1.5 px-3.5 py-1.5 rounded-lg bg-[#5E6AD2] hover:bg-[#4F5BC0] text-white text-xs font-semibold shadow-lg shadow-[#5E6AD2]/30 transition-all"
+                    >
+                      <span>Run Demo Query</span>
+                      <Sparkles className="w-3.5 h-3.5" />
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
