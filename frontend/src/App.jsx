@@ -165,70 +165,152 @@ export default function App() {
     }
   };
 
+  const [targetRect, setTargetRect] = useState(null);
+
   const tourSteps = [
     {
-      badge: "Architecture & Foundation",
-      title: "Corrective RAG (CRAG) Assistant",
-      description:
-        "Welcome! This AI knowledge assistant answers queries from Standard-10 textbook PDFs and engineering policy handbooks using a cyclic LangGraph state machine with 100% zero-hallucination verification.",
-      bulletPoints: [
-        "Dedicated 24/7 AWS EC2 backend with persistent ChromaDB vector store",
-        "Sub-second Groq LPU inference using openai/gpt-oss-120b (131k context)",
-        "Zero cold starts, fully decoupled Vercel Edge architecture",
-      ],
-      icon: Sparkles,
-    },
-    {
-      badge: "Knowledge Boundaries",
-      title: "Dynamic Knowledge Scope",
-      description:
-        "Use the top scope bar to isolate questions to a single textbook (e.g. Mathematics, Geography, or History) or query across the entire multi-document corpus simultaneously.",
-      bulletPoints: [
-        "Click any document chip to toggle active knowledge scope",
-        "Total chunk counter dynamically adjusts based on active filters",
-        "Upload new PDFs, Markdown, or TXT files on the fly via the + Add Doc button",
-      ],
+      targetId: "tour-docs-selector",
+      badge: "Scope & Ingestion",
+      title: "Document Scope & File Uploads",
       icon: Filter,
+      whatItIs: "The document selection strip controls which textbooks or engineering handbooks the AI is permitted to search.",
+      whatIsUse: "By default, queries search across the entire multi-document index. You can isolate questions to a single textbook (e.g. Mathematics, History, or Geography) or ingest new documents on the fly.",
+      howToUse: [
+        "Click any document chip to toggle it on or off for your question.",
+        "Click '+ Add Doc' to upload your own PDF, Markdown, or TXT file into the vector store.",
+        "Click 'Select All' to search all 5 textbooks and handbooks simultaneously.",
+      ],
     },
     {
-      badge: "Factuality & Evidence",
-      title: "Strict Grounding & Page-Level Citations",
-      description:
-        "Every claim generated is anchored in verifiable text excerpts with exact document names and page numbers (e.g., [chapter_01_Linear_Equations...pdf | Page 21]).",
-      bulletPoints: [
-        "Zero Hallucination: Acknowledges missing information when queries are out-of-corpus",
-        "Trust Factor Badge: Displays 0% to 100% confidence grounded in evidence",
-        "Evaluation score: 100% pass rate on answerable and unanswerable benchmarks",
+      targetId: "tour-header-status",
+      badge: "Cloud Telemetry",
+      title: "AWS EC2 & Groq 120B Engine Health",
+      icon: Cpu,
+      whatItIs: "Real-time production infrastructure status and vector index telemetry.",
+      whatIsUse: "Displays that the dedicated AWS EC2 Ubuntu instance is running 24/7 with zero spin-down latency, ChromaDB has loaded 101 persistent chunks, and Groq LPU inference is online.",
+      howToUse: [
+        "The green 'FastAPI Live' indicator confirms active high-speed API connection.",
+        "Monitors total indexed chunks in the ChromaDB vector store.",
+        "Click the trash icon anytime to clear your conversation history.",
       ],
-      icon: ShieldCheck,
     },
     {
-      badge: "Retrieval Innovation",
-      title: "Hybrid BM25 + Dense Reranking & Telemetry",
-      description:
-        "Retrieval fuses dense semantic embeddings with lexical keyword matching using Reciprocal Rank Fusion (RRF k=60) before LLM document grading.",
-      bulletPoints: [
-        "Click 'Show Evidence Chunks' on any response to inspect retrieved excerpts",
-        "View dense vector rank vs. BM25 keyword rank side-by-side",
-        "Real-time execution step telemetry (duration in ms for each graph node)",
+      targetId: "tour-prompts",
+      badge: "Benchmark Queries",
+      title: "Pre-Loaded Evaluation Prompts",
+      icon: Sparkles,
+      whatItIs: "Curated benchmark questions designed to test the assessment criteria across math, history, and engineering.",
+      whatIsUse: "Instantly verifies formula extraction, multi-hop reasoning, and page-level citation accuracy without having to type complex questions manually.",
+      howToUse: [
+        "Click any prompt card (e.g. Cramer's Rule Formula) to auto-select its document and fire the query.",
+        "Notice the exact document names and page numbers cited in the response.",
       ],
-      icon: Layers,
     },
     {
-      badge: "Self-Correction & Fallback",
-      title: "Adaptive Web Search & Quick Prompts",
-      description:
-        "When internal documents lack sufficient confidence, the pipeline can autonomously self-correct using DuckDuckGo web search.",
-      bulletPoints: [
-        "Toggle 'Web Fallback' on or off in the bottom command bar",
-        "Adjust Top-K chunk retrieval depth (2 to 8 chunks)",
-        "Click any pre-crafted prompt below to immediately test the system!",
+      targetId: "tour-controls",
+      badge: "CRAG Tuning",
+      title: "Web Fallback & Retrieval Depth",
+      icon: Sliders,
+      whatItIs: "Dynamic tuning controls for the Corrective RAG (CRAG) decision engine.",
+      whatIsUse: "Enables autonomous self-correction if document confidence is low, and lets you tune chunk depth.",
+      howToUse: [
+        "Toggle 'Web Fallback' to allow DuckDuckGo web search if local document evidence is missing.",
+        "Use the 'Top-K' dropdown (2 to 8) to control how many evidence chunks are retrieved.",
       ],
-      icon: Compass,
+    },
+    {
+      targetId: "tour-input",
+      badge: "Query & Evidence",
+      title: "Natural Language Prompt Bar",
+      icon: Send,
+      whatItIs: "The primary input for querying your documents with strict zero-hallucination grounding.",
+      whatIsUse: "Every query is processed through hybrid dense + BM25 search, LLM document grading, grounded answer generation, and faithfulness verification.",
+      howToUse: [
+        "Type any free-form question and press Enter or click 'Send'.",
+        "Or click 'Run Demo Query' below right now to test Cramer's Rule live!",
+      ],
       actionPrompt: "Explain Cramer's rule step-by-step with determinants D, Dx, Dy, and the textbook worked example.",
       actionDoc: "chapter_01_Linear_Equations_in_Two_Variables.pdf",
     },
   ];
+
+  useEffect(() => {
+    if (!showTour) {
+      setTargetRect(null);
+      return;
+    }
+
+    const currentStep = tourSteps[tourStep];
+    if (!currentStep) return;
+
+    const updateRect = () => {
+      let el = document.getElementById(currentStep.targetId);
+      if (!el && currentStep.targetId === 'tour-prompts') {
+        el = document.getElementById('tour-chat-area') || document.querySelector('main');
+      }
+
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        const r = el.getBoundingClientRect();
+        setTargetRect({
+          top: r.top,
+          left: r.left,
+          width: r.width,
+          height: r.height,
+          bottom: r.bottom,
+          right: r.right,
+        });
+      }
+    };
+
+    updateRect();
+    const timer = setTimeout(updateRect, 150);
+
+    window.addEventListener('resize', updateRect);
+    window.addEventListener('scroll', updateRect, true);
+
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('resize', updateRect);
+      window.removeEventListener('scroll', updateRect, true);
+    };
+  }, [showTour, tourStep]);
+
+  const getPopoverPosition = () => {
+    if (!targetRect) {
+      return {
+        top: 80,
+        left: 20,
+        width: Math.min(420, window.innerWidth - 32),
+        isAbove: false,
+        arrowLeft: 30,
+      };
+    }
+
+    const tooltipWidth = Math.min(420, window.innerWidth - 32);
+    let left = targetRect.left + targetRect.width / 2 - tooltipWidth / 2;
+    left = Math.max(16, Math.min(window.innerWidth - tooltipWidth - 16, left));
+
+    const spaceBelow = window.innerHeight - (targetRect.bottom + 14);
+    const placeAbove = spaceBelow < 330 && targetRect.top > 330;
+
+    const top = placeAbove
+      ? Math.max(16, targetRect.top - 14)
+      : Math.min(window.innerHeight - 340, Math.max(16, targetRect.bottom + 14));
+
+    const arrowLeft = Math.max(
+      24,
+      Math.min(tooltipWidth - 28, targetRect.left + targetRect.width / 2 - left - 7)
+    );
+
+    return {
+      top,
+      left,
+      width: tooltipWidth,
+      isAbove: placeAbove,
+      arrowLeft,
+    };
+  };
 
   const [availableDocs, setAvailableDocs] = useState([]);
   const [selectedDocs, setSelectedDocs] = useState([]);
@@ -573,7 +655,7 @@ export default function App() {
           </div>
 
           {/* System Status Indicators */}
-          <div className="flex items-center space-x-2.5 text-xs">
+          <div id="tour-header-status" className="flex items-center space-x-2.5 text-xs">
             <div className="flex items-center space-x-2 bg-[#14161B] px-2.5 py-1 rounded-md border border-white/[0.08] text-zinc-300">
               <span
                 className={`w-1.5 h-1.5 rounded-full ${
@@ -618,7 +700,7 @@ export default function App() {
       </header>
 
       {/* Target Document Selector Strip */}
-      <section className="border-b border-white/[0.07] bg-[#0E0F12] px-4 py-2.5">
+      <section id="tour-docs-selector" className="border-b border-white/[0.07] bg-[#0E0F12] px-4 py-2.5">
         <div className="max-w-6xl mx-auto space-y-2">
           {/* Notification Banner */}
           {notification && (
@@ -762,7 +844,7 @@ export default function App() {
       {/* Main Chat Interface */}
       <main className="max-w-6xl mx-auto px-4 py-4 flex-1 w-full flex flex-col justify-between overflow-hidden">
         {/* Messages Feed */}
-        <div className="flex-1 overflow-y-auto space-y-4 pr-1 pb-4">
+        <div id="tour-chat-area" className="flex-1 overflow-y-auto space-y-4 pr-1 pb-4">
           {messages.map((msg) => {
             const isUser = msg.role === 'user';
             const sourcesExpanded = expandedSources[msg.id] || false;
@@ -1021,7 +1103,7 @@ export default function App() {
 
           {/* Quick Suggested Prompts when starting fresh */}
           {messages.length <= 1 && (
-            <div className="pt-2 pb-3">
+            <div id="tour-prompts" className="pt-2 pb-3">
               <p className="text-[11px] uppercase tracking-wider text-zinc-500 font-semibold mb-2">
                 Suggested Test Inquiries
               </p>
@@ -1074,6 +1156,7 @@ export default function App() {
         {/* Command Bar Input Box (Raycast / Linear Style) */}
         <div className="pt-2 border-t border-white/[0.07] space-y-2 bg-[#0B0C0E]">
           <form
+            id="tour-input"
             onSubmit={handleSendMessage}
             className="rounded-xl border border-white/[0.12] bg-[#121316] focus-within:border-white/25 focus-within:ring-1 focus-within:ring-white/10 transition-all p-2 shadow-xl"
           >
@@ -1097,7 +1180,7 @@ export default function App() {
             </div>
 
             {/* Bottom Toolbar inside Input Card */}
-            <div className="flex flex-wrap items-center justify-between gap-2 pt-2 px-1 border-t border-white/[0.04] text-[11px] text-zinc-400">
+            <div id="tour-controls" className="flex flex-wrap items-center justify-between gap-2 pt-2 px-1 border-t border-white/[0.04] text-[11px] text-zinc-400">
               <div className="flex items-center space-x-3">
                 <label className="flex items-center space-x-1.5 cursor-pointer text-zinc-400 hover:text-zinc-200 transition-colors">
                   <input
@@ -1134,125 +1217,198 @@ export default function App() {
         </div>
       </main>
 
-      {/* Interactive Feature Tour Modal */}
-      {showTour && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
-          <div className="relative w-full max-w-lg bg-[#111216] border border-white/[0.12] rounded-2xl shadow-2xl overflow-hidden p-6 text-zinc-100 space-y-5">
-            {/* Top Bar inside modal */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <span className="px-2.5 py-0.5 rounded-full bg-[#5E6AD2]/15 border border-[#5E6AD2]/30 text-[#A5B4FC] text-[11px] font-medium tracking-wide">
-                  {tourSteps[tourStep].badge}
-                </span>
-                <span className="text-zinc-500 text-[11px] font-mono">
-                  {tourStep + 1} of {tourSteps.length}
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={handleCloseTour}
-                className="p-1 rounded-lg text-zinc-400 hover:text-white hover:bg-white/[0.06] transition-colors"
-                title="Close Tour"
+      {/* Interactive Guided Spotlight Tour */}
+      {showTour && targetRect && (
+        <div className="fixed inset-0 z-50 pointer-events-auto">
+          {/* Backdrop Click to Dismiss */}
+          <div
+            onClick={handleCloseTour}
+            className="fixed inset-0 bg-transparent cursor-pointer"
+            title="Click outside to exit tour"
+          />
+
+          {/* Spotlight Highlight Box around Target */}
+          <div
+            className="fixed rounded-xl border-2 border-[#5E6AD2] pointer-events-none transition-all duration-300 z-50 shadow-[0_0_0_9999px_rgba(0,0,0,0.78),0_0_35px_rgba(94,106,210,0.65)]"
+            style={{
+              top: Math.max(0, targetRect.top - 6),
+              left: Math.max(0, targetRect.left - 6),
+              width: targetRect.width + 12,
+              height: targetRect.height + 12,
+            }}
+          />
+
+          {/* Floating Tooltip Popover Anchored Next to Spotlight */}
+          {(() => {
+            const currentStepData = tourSteps[tourStep];
+            const popoverPos = getPopoverPosition();
+            if (!currentStepData) return null;
+
+            return (
+              <div
+                className={`fixed z-50 transition-all duration-300 pointer-events-auto ${
+                  popoverPos.isAbove ? '-translate-y-full' : ''
+                }`}
+                style={{
+                  top: popoverPos.top,
+                  left: popoverPos.left,
+                  width: popoverPos.width,
+                }}
               >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            {/* Icon & Title */}
-            <div className="space-y-2">
-              <div className="flex items-center space-x-3">
-                <div className="w-9 h-9 rounded-xl bg-[#5E6AD2]/10 border border-[#5E6AD2]/20 flex items-center justify-center text-[#818CF8] shadow-sm">
-                  {React.createElement(tourSteps[tourStep].icon, { className: 'w-5 h-5' })}
-                </div>
-                <h3 className="text-base sm:text-lg font-bold text-white tracking-tight">
-                  {tourSteps[tourStep].title}
-                </h3>
-              </div>
-              <p className="text-xs sm:text-sm text-zinc-300 leading-relaxed pt-1">
-                {tourSteps[tourStep].description}
-              </p>
-            </div>
-
-            {/* Bullet Points */}
-            <div className="bg-[#16181D] border border-white/[0.06] rounded-xl p-3.5 space-y-2">
-              {tourSteps[tourStep].bulletPoints.map((pt, i) => (
-                <div key={i} className="flex items-start space-x-2.5 text-xs text-zinc-300">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 mt-0.5 shrink-0" />
-                  <span className="leading-snug">{pt}</span>
-                </div>
-              ))}
-            </div>
-
-            {/* Step Indicators & Action Controls */}
-            <div className="flex items-center justify-between pt-2 border-t border-white/[0.06]">
-              {/* Dots */}
-              <div className="flex items-center space-x-1.5">
-                {tourSteps.map((_, i) => (
-                  <button
-                    key={i}
-                    type="button"
-                    onClick={() => setTourStep(i)}
-                    className={`h-1.5 rounded-full transition-all ${
-                      i === tourStep ? 'w-5 bg-[#5E6AD2]' : 'w-1.5 bg-white/20 hover:bg-white/40'
+                <div className="relative bg-[#111317] border border-[#5E6AD2]/50 rounded-2xl shadow-2xl p-5 text-zinc-100 space-y-3.5 backdrop-blur-xl">
+                  {/* Pointer Arrow pointing to spotlight */}
+                  <div
+                    className={`absolute w-3.5 h-3.5 bg-[#111317] border-[#5E6AD2]/50 rotate-45 pointer-events-none ${
+                      popoverPos.isAbove
+                        ? '-bottom-2 border-b border-r'
+                        : '-top-2 border-t border-l'
                     }`}
-                    title={`Jump to step ${i + 1}`}
+                    style={{
+                      left: popoverPos.arrowLeft,
+                    }}
                   />
-                ))}
-              </div>
 
-              {/* Navigation buttons */}
-              <div className="flex items-center space-x-2">
-                {tourStep > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => setTourStep((prev) => Math.max(prev - 1, 0))}
-                    className="flex items-center space-x-1 px-3 py-1.5 rounded-lg border border-white/[0.1] text-zinc-300 hover:text-white hover:bg-white/[0.05] text-xs font-medium transition-colors"
-                  >
-                    <ArrowLeft className="w-3 h-3" />
-                    <span>Back</span>
-                  </button>
-                )}
-
-                {tourStep < tourSteps.length - 1 ? (
-                  <>
+                  {/* Header: Badge, Step Count, Close */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <span className="px-2.5 py-0.5 rounded-full bg-[#5E6AD2]/20 border border-[#5E6AD2]/40 text-[#A5B4FC] text-[10px] font-bold tracking-wider uppercase">
+                        {currentStepData.badge}
+                      </span>
+                      <span className="text-zinc-400 text-[11px] font-mono">
+                        Step {tourStep + 1} of {tourSteps.length}
+                      </span>
+                    </div>
                     <button
                       type="button"
                       onClick={handleCloseTour}
-                      className="px-2.5 py-1.5 text-zinc-500 hover:text-zinc-300 text-xs transition-colors"
+                      className="p-1 rounded-lg text-zinc-400 hover:text-white hover:bg-white/[0.08] transition-colors"
+                      title="Close Tour"
                     >
-                      Skip
+                      <X className="w-4 h-4" />
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => setTourStep((prev) => Math.min(prev + 1, tourSteps.length - 1))}
-                      className="flex items-center space-x-1.5 px-3.5 py-1.5 rounded-lg bg-white text-black hover:bg-zinc-200 text-xs font-semibold transition-all shadow-sm"
-                    >
-                      <span>Next</span>
-                      <ArrowRight className="w-3.5 h-3.5" />
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <button
-                      type="button"
-                      onClick={handleCloseTour}
-                      className="px-3 py-1.5 rounded-lg border border-white/[0.1] text-zinc-300 hover:text-white hover:bg-white/[0.05] text-xs transition-colors"
-                    >
-                      Dismiss
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleRunTourDemo}
-                      className="flex items-center space-x-1.5 px-3.5 py-1.5 rounded-lg bg-[#5E6AD2] hover:bg-[#4F5BC0] text-white text-xs font-semibold shadow-lg shadow-[#5E6AD2]/30 transition-all"
-                    >
-                      <span>Run Demo Query</span>
-                      <Sparkles className="w-3.5 h-3.5" />
-                    </button>
-                  </>
-                )}
+                  </div>
+
+                  {/* Title & Feature Icon */}
+                  <div className="flex items-center space-x-2.5">
+                    <div className="w-7 h-7 rounded-lg bg-[#5E6AD2]/15 border border-[#5E6AD2]/30 flex items-center justify-center text-[#818CF8] shrink-0">
+                      {React.createElement(currentStepData.icon, { className: 'w-4 h-4' })}
+                    </div>
+                    <h3 className="text-sm sm:text-base font-bold text-white tracking-tight">
+                      {currentStepData.title}
+                    </h3>
+                  </div>
+
+                  {/* Structured Details: What is it, What is its use, How to use it */}
+                  <div className="space-y-2.5 text-xs">
+                    {/* What is it */}
+                    <div className="bg-[#181A20] border border-white/[0.06] rounded-xl p-2.5 space-y-1">
+                      <div className="text-[10px] uppercase font-bold tracking-wider text-[#A5B4FC]">
+                        What it is
+                      </div>
+                      <p className="text-zinc-300 leading-relaxed text-[11px]">
+                        {currentStepData.whatItIs}
+                      </p>
+                    </div>
+
+                    {/* What is its use */}
+                    <div className="bg-[#181A20] border border-white/[0.06] rounded-xl p-2.5 space-y-1">
+                      <div className="text-[10px] uppercase font-bold tracking-wider text-emerald-400">
+                        What is its use
+                      </div>
+                      <p className="text-zinc-300 leading-relaxed text-[11px]">
+                        {currentStepData.whatIsUse}
+                      </p>
+                    </div>
+
+                    {/* How to use it */}
+                    <div className="bg-[#181A20] border border-white/[0.06] rounded-xl p-2.5 space-y-1.5">
+                      <div className="text-[10px] uppercase font-bold tracking-wider text-amber-300">
+                        How to use it
+                      </div>
+                      <ul className="space-y-1 text-[11px] text-zinc-300">
+                        {currentStepData.howToUse.map((instruction, idx) => (
+                          <li key={idx} className="flex items-start space-x-1.5">
+                            <span className="text-[#818CF8] font-bold">•</span>
+                            <span className="leading-snug">{instruction}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+
+                  {/* Footer Navigation */}
+                  <div className="flex items-center justify-between pt-2 border-t border-white/[0.08]">
+                    {/* Step Dots */}
+                    <div className="flex items-center space-x-1.5">
+                      {tourSteps.map((_, i) => (
+                        <button
+                          key={i}
+                          type="button"
+                          onClick={() => setTourStep(i)}
+                          className={`h-1.5 rounded-full transition-all ${
+                            i === tourStep ? 'w-5 bg-[#5E6AD2]' : 'w-1.5 bg-white/20 hover:bg-white/40'
+                          }`}
+                          title={`Jump to step ${i + 1}`}
+                        />
+                      ))}
+                    </div>
+
+                    {/* Navigation Buttons */}
+                    <div className="flex items-center space-x-2">
+                      {tourStep > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setTourStep((prev) => Math.max(prev - 1, 0))}
+                          className="flex items-center space-x-1 px-2.5 py-1.5 rounded-lg border border-white/[0.1] text-zinc-300 hover:text-white hover:bg-white/[0.05] text-xs font-medium transition-colors"
+                        >
+                          <ArrowLeft className="w-3 h-3" />
+                          <span>Back</span>
+                        </button>
+                      )}
+
+                      {tourStep < tourSteps.length - 1 ? (
+                        <>
+                          <button
+                            type="button"
+                            onClick={handleCloseTour}
+                            className="px-2 py-1 text-zinc-400 hover:text-zinc-200 text-xs transition-colors"
+                          >
+                            Skip
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setTourStep((prev) => Math.min(prev + 1, tourSteps.length - 1))}
+                            className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-white text-black hover:bg-zinc-200 text-xs font-semibold transition-all shadow-sm"
+                          >
+                            <span>Next</span>
+                            <ArrowRight className="w-3.5 h-3.5" />
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button
+                            type="button"
+                            onClick={handleCloseTour}
+                            className="px-2.5 py-1.5 rounded-lg border border-white/[0.1] text-zinc-300 hover:text-white hover:bg-white/[0.05] text-xs transition-colors"
+                          >
+                            Dismiss
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleRunTourDemo}
+                            className="flex items-center space-x-1.5 px-3.5 py-1.5 rounded-lg bg-[#5E6AD2] hover:bg-[#4F5BC0] text-white text-xs font-semibold shadow-lg shadow-[#5E6AD2]/30 transition-all"
+                          >
+                            <span>Run Demo Query</span>
+                            <Sparkles className="w-3.5 h-3.5" />
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
+            );
+          })()}
         </div>
       )}
     </div>
