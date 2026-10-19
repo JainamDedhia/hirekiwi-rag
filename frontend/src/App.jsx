@@ -139,11 +139,12 @@ export default function App() {
 
   useEffect(() => {
     try {
-      const tourSeen = localStorage.getItem('hirekiwi_tour_seen');
+      const tourSeen = localStorage.getItem('hirekiwi_spotlight_v1');
       if (!tourSeen) {
+        // Automatically launch tour for first-time visitors
         const timer = setTimeout(() => {
           setShowTour(true);
-        }, 800);
+        }, 400);
         return () => clearTimeout(timer);
       }
     } catch (e) {
@@ -159,7 +160,7 @@ export default function App() {
   const handleCloseTour = () => {
     setShowTour(false);
     try {
-      localStorage.setItem('hirekiwi_tour_seen', 'true');
+      localStorage.setItem('hirekiwi_spotlight_v1', 'true');
     } catch (e) {
       // ignore
     }
@@ -250,27 +251,41 @@ export default function App() {
       }
 
       if (el) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         const r = el.getBoundingClientRect();
-        setTargetRect({
-          top: r.top,
-          left: r.left,
-          width: r.width,
-          height: r.height,
-          bottom: r.bottom,
-          right: r.right,
-        });
+        if (r.width > 0 && r.height > 0) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          setTargetRect({
+            top: r.top,
+            left: r.left,
+            width: r.width,
+            height: r.height,
+            bottom: r.bottom,
+            right: r.right,
+          });
+          return;
+        }
       }
+
+      setTargetRect({
+        top: 60,
+        left: 16,
+        width: Math.min(window.innerWidth - 32, 600),
+        height: 60,
+        bottom: 120,
+        right: Math.min(window.innerWidth - 16, 616),
+      });
     };
 
     updateRect();
-    const timer = setTimeout(updateRect, 150);
+    const t1 = setTimeout(updateRect, 100);
+    const t2 = setTimeout(updateRect, 300);
 
     window.addEventListener('resize', updateRect);
     window.addEventListener('scroll', updateRect, true);
 
     return () => {
-      clearTimeout(timer);
+      clearTimeout(t1);
+      clearTimeout(t2);
       window.removeEventListener('resize', updateRect);
       window.removeEventListener('scroll', updateRect, true);
     };
@@ -1218,7 +1233,7 @@ export default function App() {
       </main>
 
       {/* Interactive Guided Spotlight Tour */}
-      {showTour && targetRect && (
+      {showTour && (
         <div className="fixed inset-0 z-50 pointer-events-auto">
           {/* Backdrop Click to Dismiss */}
           <div
@@ -1228,15 +1243,17 @@ export default function App() {
           />
 
           {/* Spotlight Highlight Box around Target */}
-          <div
-            className="fixed rounded-xl border-2 border-[#5E6AD2] pointer-events-none transition-all duration-300 z-50 shadow-[0_0_0_9999px_rgba(0,0,0,0.78),0_0_35px_rgba(94,106,210,0.65)]"
-            style={{
-              top: Math.max(0, targetRect.top - 6),
-              left: Math.max(0, targetRect.left - 6),
-              width: targetRect.width + 12,
-              height: targetRect.height + 12,
-            }}
-          />
+          {targetRect && (
+            <div
+              className="fixed rounded-xl border-2 border-[#5E6AD2] pointer-events-none transition-all duration-300 z-50 shadow-[0_0_0_9999px_rgba(0,0,0,0.78),0_0_35px_rgba(94,106,210,0.65)]"
+              style={{
+                top: Math.max(0, targetRect.top - 6),
+                left: Math.max(0, targetRect.left - 6),
+                width: targetRect.width + 12,
+                height: targetRect.height + 12,
+              }}
+            />
+          )}
 
           {/* Floating Tooltip Popover Anchored Next to Spotlight */}
           {(() => {
