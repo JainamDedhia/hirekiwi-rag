@@ -88,9 +88,9 @@ flowchart TD
 ## 4. How to Verify & Test
 
 1. **Interactive Demo**: Visit [https://hirekiwi-rag.vercel.app](https://hirekiwi-rag.vercel.app)
-   - First-time visitors are welcomed with the **5-step interactive feature tour**.
-   - Reviewers can re-launch the tour at any time by clicking the **"Tour"** button in the header.
-   - Click any sample prompt (e.g. *Cramer's Rule Formula*) or click **"Run Demo Query"** inside the tour to observe real-time citations, confidence badges, and execution step telemetry.
+   - First-time visitors are welcomed with an **interactive guided spotlight tour** that physically highlights each UI element across 5 steps (Scope bar, EC2 health telemetry, Benchmark prompts, CRAG Web Fallback controls, and Query Input) with detailed "What it is", "What is its use", and "How to use it" breakdowns.
+   - Reviewers can re-launch the tour at any time by clicking the **"Tour"** button in the top navigation bar.
+   - Click any sample prompt (e.g. *Cramer's Rule Formula*) or click **"Run Demo Query"** inside the tour to observe real-time page citations, confidence badges, and execution step telemetry.
 2. **Swagger Docs**: Visit [http://65.2.37.22:8000/docs](http://65.2.37.22:8000/docs) to inspect and run endpoints interactively.
 3. **Run Evaluation Locally**:
    ```bash
