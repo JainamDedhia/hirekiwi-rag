@@ -235,6 +235,44 @@ export default function App() {
     },
   ];
 
+  const [viewport, setViewport] = useState({
+    width: typeof window !== 'undefined' ? window.innerWidth : 1200,
+    height: typeof window !== 'undefined' ? window.innerHeight : 800,
+    dpr: typeof window !== 'undefined' ? (window.devicePixelRatio || 1) : 1,
+    isShort: typeof window !== 'undefined' ? window.innerHeight < 720 : false,
+    isNarrow: typeof window !== 'undefined' ? window.innerWidth < 640 : false,
+  });
+
+  useEffect(() => {
+    const handleViewportChange = () => {
+      const w = window.visualViewport ? window.visualViewport.width : window.innerWidth;
+      const h = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+      const dpr = window.devicePixelRatio || 1;
+      setViewport({
+        width: w,
+        height: h,
+        dpr,
+        isShort: h < 720,
+        isNarrow: w < 640,
+      });
+    };
+
+    handleViewportChange();
+    window.addEventListener('resize', handleViewportChange);
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', handleViewportChange);
+      window.visualViewport.addEventListener('scroll', handleViewportChange);
+    }
+
+    return () => {
+      window.removeEventListener('resize', handleViewportChange);
+      if (window.visualViewport) {
+        window.visualViewport.removeEventListener('resize', handleViewportChange);
+        window.visualViewport.removeEventListener('scroll', handleViewportChange);
+      }
+    };
+  }, []);
+
   useEffect(() => {
     if (!showTour) {
       setTargetRect(null);
@@ -251,9 +289,17 @@ export default function App() {
       }
 
       if (el) {
+        // Smart scroll based on element position
+        if (currentStep.targetId === 'tour-header-status' || currentStep.targetId === 'tour-docs-selector') {
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        } else if (currentStep.targetId === 'tour-input' || currentStep.targetId === 'tour-controls') {
+          el.scrollIntoView({ behavior: 'smooth', block: 'end' });
+        } else {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+
         const r = el.getBoundingClientRect();
         if (r.width > 0 && r.height > 0) {
-          el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
           setTargetRect({
             top: r.top,
             left: r.left,
@@ -266,13 +312,14 @@ export default function App() {
         }
       }
 
+      const vpW = window.visualViewport ? window.visualViewport.width : window.innerWidth;
       setTargetRect({
         top: 60,
         left: 16,
-        width: Math.min(window.innerWidth - 32, 600),
+        width: Math.min(vpW - 32, 600),
         height: 60,
         bottom: 120,
-        right: Math.min(window.innerWidth - 16, 616),
+        right: Math.min(vpW - 16, 616),
       });
     };
 
@@ -282,39 +329,58 @@ export default function App() {
 
     window.addEventListener('resize', updateRect);
     window.addEventListener('scroll', updateRect, true);
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', updateRect);
+      window.visualViewport.addEventListener('scroll', updateRect);
+    }
 
     return () => {
       clearTimeout(t1);
       clearTimeout(t2);
       window.removeEventListener('resize', updateRect);
       window.removeEventListener('scroll', updateRect, true);
+      if (window.visualViewport) {
+        window.visualViewport.removeEventListener('resize', updateRect);
+        window.visualViewport.removeEventListener('scroll', updateRect);
+      }
     };
   }, [showTour, tourStep]);
 
   const getPopoverPosition = () => {
+    const vpW = viewport.width;
+    const vpH = viewport.height;
+    const tooltipWidth = Math.min(viewport.isNarrow ? vpW - 24 : 410, vpW - 24);
+
     if (!targetRect) {
       return {
-        top: 80,
-        left: 20,
-        width: Math.min(420, window.innerWidth - 32),
+        top: 70,
+        left: Math.max(12, (vpW - tooltipWidth) / 2),
+        width: tooltipWidth,
         isAbove: false,
-        arrowLeft: 30,
+        arrowLeft: tooltipWidth / 2 - 7,
       };
     }
 
-    const tooltipWidth = Math.min(420, window.innerWidth - 32);
+    // Horizontal alignment clamped within viewport margins
     let left = targetRect.left + targetRect.width / 2 - tooltipWidth / 2;
-    left = Math.max(16, Math.min(window.innerWidth - tooltipWidth - 16, left));
+    left = Math.max(12, Math.min(vpW - tooltipWidth - 12, left));
 
-    const spaceBelow = window.innerHeight - (targetRect.bottom + 14);
-    const placeAbove = spaceBelow < 330 && targetRect.top > 330;
+    // Dynamic vertical placement considering zoom and screen dimensions
+    const spaceBelow = vpH - (targetRect.bottom + 12);
+    const spaceAbove = targetRect.top - 12;
+    const estCardHeight = viewport.isShort ? 280 : 350;
 
-    const top = placeAbove
-      ? Math.max(16, targetRect.top - 14)
-      : Math.min(window.innerHeight - 340, Math.max(16, targetRect.bottom + 14));
+    const placeAbove = spaceBelow < estCardHeight && spaceAbove >= spaceBelow;
+
+    let top = 0;
+    if (placeAbove) {
+      top = Math.max(12, targetRect.top - 12);
+    } else {
+      top = Math.min(vpH - Math.min(estCardHeight, vpH - 40), Math.max(12, targetRect.bottom + 12));
+    }
 
     const arrowLeft = Math.max(
-      24,
+      20,
       Math.min(tooltipWidth - 28, targetRect.left + targetRect.width / 2 - left - 7)
     );
 
@@ -1249,8 +1315,8 @@ export default function App() {
               style={{
                 top: Math.max(0, targetRect.top - 6),
                 left: Math.max(0, targetRect.left - 6),
-                width: targetRect.width + 12,
-                height: targetRect.height + 12,
+                width: Math.min(viewport.width - Math.max(0, targetRect.left - 6), targetRect.width + 12),
+                height: Math.min(viewport.height - Math.max(0, targetRect.top - 6), targetRect.height + 12),
               }}
             />
           )}
@@ -1272,7 +1338,11 @@ export default function App() {
                   width: popoverPos.width,
                 }}
               >
-                <div className="relative bg-[#111317] border border-[#5E6AD2]/50 rounded-2xl shadow-2xl p-5 text-zinc-100 space-y-3.5 backdrop-blur-xl">
+                <div
+                  className={`relative bg-[#111317] border border-[#5E6AD2]/50 rounded-2xl shadow-2xl text-zinc-100 backdrop-blur-xl max-h-[85vh] overflow-y-auto ${
+                    viewport.isShort ? 'p-3.5 space-y-2' : 'p-5 space-y-3.5'
+                  }`}
+                >
                   {/* Pointer Arrow pointing to spotlight */}
                   <div
                     className={`absolute w-3.5 h-3.5 bg-[#111317] border-[#5E6AD2]/50 rotate-45 pointer-events-none ${
@@ -1310,39 +1380,67 @@ export default function App() {
                     <div className="w-7 h-7 rounded-lg bg-[#5E6AD2]/15 border border-[#5E6AD2]/30 flex items-center justify-center text-[#818CF8] shrink-0">
                       {React.createElement(currentStepData.icon, { className: 'w-4 h-4' })}
                     </div>
-                    <h3 className="text-sm sm:text-base font-bold text-white tracking-tight">
+                    <h3
+                      className={`font-bold text-white tracking-tight ${
+                        viewport.isShort ? 'text-xs sm:text-sm' : 'text-sm sm:text-base'
+                      }`}
+                    >
                       {currentStepData.title}
                     </h3>
                   </div>
 
                   {/* Structured Details: What is it, What is its use, How to use it */}
-                  <div className="space-y-2.5 text-xs">
+                  <div className={`text-xs ${viewport.isShort ? 'space-y-1.5' : 'space-y-2.5'}`}>
                     {/* What is it */}
-                    <div className="bg-[#181A20] border border-white/[0.06] rounded-xl p-2.5 space-y-1">
+                    <div
+                      className={`bg-[#181A20] border border-white/[0.06] rounded-xl ${
+                        viewport.isShort ? 'p-2 space-y-0.5' : 'p-2.5 space-y-1'
+                      }`}
+                    >
                       <div className="text-[10px] uppercase font-bold tracking-wider text-[#A5B4FC]">
                         What it is
                       </div>
-                      <p className="text-zinc-300 leading-relaxed text-[11px]">
+                      <p
+                        className={`text-zinc-300 leading-relaxed ${
+                          viewport.isShort ? 'text-[10.5px]' : 'text-[11px]'
+                        }`}
+                      >
                         {currentStepData.whatItIs}
                       </p>
                     </div>
 
                     {/* What is its use */}
-                    <div className="bg-[#181A20] border border-white/[0.06] rounded-xl p-2.5 space-y-1">
+                    <div
+                      className={`bg-[#181A20] border border-white/[0.06] rounded-xl ${
+                        viewport.isShort ? 'p-2 space-y-0.5' : 'p-2.5 space-y-1'
+                      }`}
+                    >
                       <div className="text-[10px] uppercase font-bold tracking-wider text-emerald-400">
                         What is its use
                       </div>
-                      <p className="text-zinc-300 leading-relaxed text-[11px]">
+                      <p
+                        className={`text-zinc-300 leading-relaxed ${
+                          viewport.isShort ? 'text-[10.5px]' : 'text-[11px]'
+                        }`}
+                      >
                         {currentStepData.whatIsUse}
                       </p>
                     </div>
 
                     {/* How to use it */}
-                    <div className="bg-[#181A20] border border-white/[0.06] rounded-xl p-2.5 space-y-1.5">
+                    <div
+                      className={`bg-[#181A20] border border-white/[0.06] rounded-xl ${
+                        viewport.isShort ? 'p-2 space-y-0.5' : 'p-2.5 space-y-1.5'
+                      }`}
+                    >
                       <div className="text-[10px] uppercase font-bold tracking-wider text-amber-300">
                         How to use it
                       </div>
-                      <ul className="space-y-1 text-[11px] text-zinc-300">
+                      <ul
+                        className={`text-zinc-300 ${
+                          viewport.isShort ? 'space-y-0.5 text-[10.5px]' : 'space-y-1 text-[11px]'
+                        }`}
+                      >
                         {currentStepData.howToUse.map((instruction, idx) => (
                           <li key={idx} className="flex items-start space-x-1.5">
                             <span className="text-[#818CF8] font-bold">•</span>
